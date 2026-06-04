@@ -13,6 +13,7 @@
   "activationEvents": [
     "onCommand:colorCalibration.printThemeProbe",
     "onCommand:colorCalibration.printThemeSignalReport",
+    "onCommand:colorCalibration.openBeforeAfterPreview",
     "onCommand:colorCalibration.applyHardcodedPatch",
     "onCommand:colorCalibration.rollbackHardcodedPatch"
   ],
@@ -26,6 +27,10 @@
       {
         "command": "colorCalibration.printThemeSignalReport",
         "title": "Color Calibration: Print Theme Signal Report"
+      },
+      {
+        "command": "colorCalibration.openBeforeAfterPreview",
+        "title": "Color Calibration: Open Before/After Preview"
       },
       {
         "command": "colorCalibration.applyHardcodedPatch",
