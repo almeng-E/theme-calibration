@@ -11,7 +11,9 @@
     "Other"
   ],
   "activationEvents": [
-    "onCommand:colorCalibration.printThemeProbe"
+    "onCommand:colorCalibration.printThemeProbe",
+    "onCommand:colorCalibration.applyHardcodedPatch",
+    "onCommand:colorCalibration.rollbackHardcodedPatch"
   ],
   "main": "./src/extension.js",
   "contributes": {
@@ -19,6 +21,14 @@
       {
         "command": "colorCalibration.printThemeProbe",
         "title": "Color Calibration: Print Theme Probe"
+      },
+      {
+        "command": "colorCalibration.applyHardcodedPatch",
+        "title": "Color Calibration: Apply Hardcoded Patch PoC"
+      },
+      {
+        "command": "colorCalibration.rollbackHardcodedPatch",
+        "title": "Color Calibration: Rollback Hardcoded Patch PoC"
       }
     ]
   },
