@@ -4,6 +4,10 @@ const vscode = require("vscode");
 const { collectThemeProbe } = require("./themeProbe");
 const { createThemeSignalReport } = require("./themeReport");
 const {
+  createPreviewModel,
+  renderPreviewHtml
+} = require("./previewWebview");
+const {
   POC_PATCH_RECIPE,
   ROLLBACK_STATE_KEY,
   applySettingsUpdates,
@@ -62,6 +66,47 @@ function activate(context) {
       output.appendLine(`Theme signal report failed: ${message}`);
       console.error("[Color Calibration Theme Signal Report] Failed", error);
       vscode.window.showErrorMessage(`Theme signal report failed: ${message}`);
+    }
+  });
+
+  const openBeforeAfterPreviewCommand = vscode.commands.registerCommand("colorCalibration.openBeforeAfterPreview", async () => {
+    output.show(true);
+    output.appendLine(`[${new Date().toISOString()}] Before/after preview started.`);
+
+    try {
+      const probe = await collectThemeProbe(vscode, {
+        includeThemeDefinitions: true
+      });
+      const report = createThemeSignalReport(probe);
+      const previewModel = createPreviewModel(report, POC_PATCH_RECIPE);
+      const panel = vscode.window.createWebviewPanel(
+        "colorCalibrationBeforeAfterPreview",
+        "Color Calibration Preview",
+        vscode.ViewColumn.Beside,
+        {
+          enableScripts: false,
+          retainContextWhenHidden: true
+        }
+      );
+
+      panel.webview.html = renderPreviewHtml(previewModel);
+
+      output.appendLine(JSON.stringify({
+        themeName: previewModel.themeName,
+        risks: previewModel.risks.length,
+        before: previewModel.before.signals,
+        after: previewModel.after.signals
+      }, null, 2));
+      console.log("[Color Calibration Before/After Preview]", previewModel);
+
+      vscode.window.showInformationMessage(
+        `Before/after preview opened for ${previewModel.themeName}.`
+      );
+    } catch (error) {
+      const message = error && error.message ? error.message : String(error);
+      output.appendLine(`Before/after preview failed: ${message}`);
+      console.error("[Color Calibration Before/After Preview] Failed", error);
+      vscode.window.showErrorMessage(`Before/after preview failed: ${message}`);
     }
   });
 
@@ -136,7 +181,14 @@ function activate(context) {
     }
   });
 
-  context.subscriptions.push(output, printProbeCommand, printSignalReportCommand, applyPatchCommand, rollbackPatchCommand);
+  context.subscriptions.push(
+    output,
+    printProbeCommand,
+    printSignalReportCommand,
+    openBeforeAfterPreviewCommand,
+    applyPatchCommand,
+    rollbackPatchCommand
+  );
 }
 
 function deactivate() {}

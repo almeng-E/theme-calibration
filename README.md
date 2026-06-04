@@ -31,6 +31,22 @@ Color Calibration: Print Theme Signal Report
 
 출력에는 각 signal의 색상, 출처, 배경 대비 contrast ratio, 단순 위험 목록이 포함된다. 현재 기준에서는 `lowContrast`, `similarSignal`, `missingThemeDefinition`만 탐지한다.
 
+## PoC 4: Before/After Preview Webview
+
+Extension Development Host 창에서 Command Palette를 열고 아래 명령을 실행한다.
+
+```text
+Color Calibration: Open Before/After Preview
+```
+
+이 명령은 현재 테마의 signal 색상과 hardcoded patch 후보를 실제 적용 없이 나란히 보여주는 Webview panel을 연다.
+
+- 왼쪽 `Before`: 현재 theme signal 기준 샘플
+- 오른쪽 `After`: hardcoded patch 후보가 반영된 샘플
+- 하단 `Report Risks`: Theme Signal Report에서 발견한 risk 요약
+
+이 preview는 설정을 변경하지 않는다. 실제 설정 변경 검증은 `Color Calibration: Apply Hardcoded Patch PoC` 명령에서 진행한다.
+
 ## PoC 2: settings overlay 적용과 rollback
 
 Extension Development Host 창에서 Command Palette를 열고 아래 명령을 순서대로 실행한다.
@@ -61,6 +77,7 @@ Extension Development Host 창에서 Command Palette를 열고 아래 명령을 
 - 접근 가능한 theme JSON/JSONC 파일의 colors, tokenColors, semanticTokenColors 정의
 - settings overlay patch 적용 결과와 rollback snapshot
 - theme signal summary와 visibility risk report
+- before/after preview webview
 
 ## PoC 제약
 
