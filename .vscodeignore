@@ -1,0 +1,7 @@
+.git/**
+.agents/**
+.codex/**
+docs/superpowers/**
+test/**
+*.vsix
+node_modules/**

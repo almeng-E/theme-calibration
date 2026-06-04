@@ -1,0 +1,28 @@
+{
+  "name": "color-calibration-extension",
+  "displayName": "Color Calibration Theme Probe",
+  "description": "VS Code/Cursor theme detection PoC for the color calibration MVP.",
+  "version": "0.0.1",
+  "publisher": "local-poc",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onCommand:colorCalibration.printThemeProbe"
+  ],
+  "main": "./src/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "colorCalibration.printThemeProbe",
+        "title": "Color Calibration: Print Theme Probe"
+      }
+    ]
+  },
+  "scripts": {
+    "test": "node --test"
+  }
+}
