@@ -12,6 +12,7 @@
   ],
   "activationEvents": [
     "onCommand:colorCalibration.printThemeProbe",
+    "onCommand:colorCalibration.printThemeSignalReport",
     "onCommand:colorCalibration.applyHardcodedPatch",
     "onCommand:colorCalibration.rollbackHardcodedPatch"
   ],
@@ -21,6 +22,10 @@
       {
         "command": "colorCalibration.printThemeProbe",
         "title": "Color Calibration: Print Theme Probe"
+      },
+      {
+        "command": "colorCalibration.printThemeSignalReport",
+        "title": "Color Calibration: Print Theme Signal Report"
       },
       {
         "command": "colorCalibration.applyHardcodedPatch",

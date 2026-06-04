@@ -2,6 +2,7 @@
 
 const vscode = require("vscode");
 const { collectThemeProbe } = require("./themeProbe");
+const { createThemeSignalReport } = require("./themeReport");
 const {
   POC_PATCH_RECIPE,
   ROLLBACK_STATE_KEY,
@@ -36,6 +37,31 @@ function activate(context) {
       output.appendLine(`Theme probe failed: ${message}`);
       console.error("[Color Calibration Theme Probe] Failed", error);
       vscode.window.showErrorMessage(`Theme probe failed: ${message}`);
+    }
+  });
+
+  const printSignalReportCommand = vscode.commands.registerCommand("colorCalibration.printThemeSignalReport", async () => {
+    output.show(true);
+    output.appendLine(`[${new Date().toISOString()}] Theme signal report started.`);
+
+    try {
+      const probe = await collectThemeProbe(vscode, {
+        includeThemeDefinitions: true
+      });
+      const report = createThemeSignalReport(probe);
+      const serialized = JSON.stringify(report, null, 2);
+
+      output.appendLine(serialized);
+      console.log("[Color Calibration Theme Signal Report]", report);
+
+      vscode.window.showInformationMessage(
+        `Theme signal report printed: ${report.theme.configuredName || "unknown"}, risks ${report.risks.length}.`
+      );
+    } catch (error) {
+      const message = error && error.message ? error.message : String(error);
+      output.appendLine(`Theme signal report failed: ${message}`);
+      console.error("[Color Calibration Theme Signal Report] Failed", error);
+      vscode.window.showErrorMessage(`Theme signal report failed: ${message}`);
     }
   });
 
@@ -110,7 +136,7 @@ function activate(context) {
     }
   });
 
-  context.subscriptions.push(output, printProbeCommand, applyPatchCommand, rollbackPatchCommand);
+  context.subscriptions.push(output, printProbeCommand, printSignalReportCommand, applyPatchCommand, rollbackPatchCommand);
 }
 
 function deactivate() {}
