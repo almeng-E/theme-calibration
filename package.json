@@ -15,6 +15,7 @@
     "onCommand:colorCalibration.printThemeSignalReport",
     "onCommand:colorCalibration.printPatchCandidates",
     "onCommand:colorCalibration.openBeforeAfterPreview",
+    "onCommand:colorCalibration.openCandidatePreview",
     "onCommand:colorCalibration.applyHardcodedPatch",
     "onCommand:colorCalibration.rollbackHardcodedPatch"
   ],
@@ -36,6 +37,10 @@
       {
         "command": "colorCalibration.openBeforeAfterPreview",
         "title": "Color Calibration: Open Before/After Preview"
+      },
+      {
+        "command": "colorCalibration.openCandidatePreview",
+        "title": "Color Calibration: Open Candidate Preview"
       },
       {
         "command": "colorCalibration.applyHardcodedPatch",

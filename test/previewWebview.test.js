@@ -25,6 +25,56 @@ test("createPreviewModel applies hardcoded patch colors to after signals only", 
   assert.equal(model.risks.length, 1);
 });
 
+test("createPreviewModel applies token color candidate patches to after comment signals", () => {
+  const report = createFakeReport("Sample Dark");
+  const recipe = {
+    id: "patch-candidates-sample-dark",
+    description: "Comment preview candidate.",
+    settings: {
+      "workbench.colorCustomizations": {},
+      "editor.tokenColorCustomizations": {
+        "[Sample Dark]": {
+          comments: "#8fb8ff"
+        }
+      },
+      "editor.semanticTokenColorCustomizations": {}
+    }
+  };
+  const candidates = [createCommentCandidate()];
+
+  const model = createPreviewModel(report, recipe, {
+    candidates,
+    selectedCandidateId: candidates[0].id
+  });
+
+  assert.equal(model.before.signals.comment, "#6a9955");
+  assert.equal(model.after.signals.comment, "#8fb8ff");
+  assert.equal(model.selectedCandidateId, candidates[0].id);
+  assert.deepEqual(model.candidates, candidates);
+});
+
+test("createPreviewModel applies workbench candidate patches to after diffDeleted signals", () => {
+  const report = createFakeReport("Sample Dark");
+  const recipe = {
+    id: "patch-candidates-sample-dark",
+    description: "Deleted gutter preview candidate.",
+    settings: {
+      "workbench.colorCustomizations": {
+        "[Sample Dark]": {
+          "editorGutter.deletedBackground": "#ff6b6b"
+        }
+      },
+      "editor.tokenColorCustomizations": {},
+      "editor.semanticTokenColorCustomizations": {}
+    }
+  };
+
+  const model = createPreviewModel(report, recipe);
+
+  assert.equal(model.before.signals.diffDeleted, "#f44747");
+  assert.equal(model.after.signals.diffDeleted, "#ff6b6b");
+});
+
 test("renderPreviewHtml renders before and after panes and escapes theme text", () => {
   const report = createFakeReport("Dark <script>alert(1)</script>");
   const model = createPreviewModel(report, POC_PATCH_RECIPE);
@@ -37,6 +87,55 @@ test("renderPreviewHtml renders before and after panes and escapes theme text", 
   assert.match(html, /Dark &lt;script&gt;alert\(1\)&lt;\/script&gt;/);
   assert.doesNotMatch(html, /<script>alert\(1\)<\/script>/);
 });
+
+test("renderPreviewHtml renders candidate metadata, selected marker, and escapes candidate reason", () => {
+  const report = createFakeReport("Sample Dark");
+  const candidates = [createCommentCandidate()];
+  const recipe = {
+    id: "patch-candidates-sample-dark",
+    description: "Comment preview candidate.",
+    settings: {
+      "workbench.colorCustomizations": {},
+      "editor.tokenColorCustomizations": {
+        "[Sample Dark]": {
+          comments: "#8fb8ff"
+        }
+      },
+      "editor.semanticTokenColorCustomizations": {}
+    }
+  };
+  const model = createPreviewModel(report, recipe, {
+    candidates,
+    selectedCandidateId: candidates[0].id
+  });
+
+  const html = renderPreviewHtml(model);
+
+  assert.match(html, /Candidate Preview Selection/);
+  assert.match(html, /Selected/);
+  assert.match(html, /comments/);
+  assert.match(html, /theme/);
+  assert.match(html, /0\.80/);
+  assert.match(html, /&lt;script&gt;comment risk&lt;\/script&gt;/);
+  assert.doesNotMatch(html, /<script>comment risk<\/script>/);
+});
+
+function createCommentCandidate() {
+  return {
+    id: "lowContrast-comment-editor.tokenColorCustomizations-comments",
+    riskType: "lowContrast",
+    signals: ["comment"],
+    settingId: "editor.tokenColorCustomizations",
+    settingKey: "comments",
+    currentSignals: {
+      comment: "#222222"
+    },
+    suggestedColor: "#8fb8ff",
+    reason: "<script>comment risk</script>",
+    scope: "theme",
+    confidence: 0.8
+  };
+}
 
 function createFakeReport(themeName) {
   return {

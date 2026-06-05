@@ -1,4 +1,13 @@
-import type { PatchRecipe, PreviewModel, PreviewPane, SignalValues, ThemeRisk, ThemeSignalReport } from "./types";
+import type {
+  PatchCandidate,
+  PatchRecipe,
+  PlainSetting,
+  PreviewModel,
+  PreviewPane,
+  SignalValues,
+  ThemeRisk,
+  ThemeSignalReport
+} from "./types";
 
 const SIGNAL_DEFAULTS: SignalValues = {
   background: "#1e1e1e",
@@ -12,7 +21,16 @@ const SIGNAL_DEFAULTS: SignalValues = {
   diffDeleted: "#f44747"
 };
 
-export function createPreviewModel(report: Partial<ThemeSignalReport> | undefined, patchRecipe: PatchRecipe): PreviewModel {
+export interface PreviewModelOptions {
+  candidates?: PatchCandidate[];
+  selectedCandidateId?: string;
+}
+
+export function createPreviewModel(
+  report: Partial<ThemeSignalReport> | undefined,
+  patchRecipe: PatchRecipe,
+  options: PreviewModelOptions = {}
+): PreviewModel {
   const beforeSignals = normalizeReportSignals(report?.signals);
   const afterSignals = {
     ...beforeSignals,
@@ -29,7 +47,9 @@ export function createPreviewModel(report: Partial<ThemeSignalReport> | undefine
       title: "After",
       signals: afterSignals
     },
-    risks: Array.isArray(report?.risks) ? report.risks : []
+    risks: Array.isArray(report?.risks) ? report.risks : [],
+    candidates: options.candidates?.slice(),
+    selectedCandidateId: options.selectedCandidateId
   };
 }
 
@@ -38,6 +58,7 @@ export function renderPreviewHtml(model: PreviewModel): string {
   const riskItems = model.risks.length > 0
     ? model.risks.map((risk) => `<li>${escapeHtml(formatRisk(risk))}</li>`).join("")
     : "<li>No risk is available in the current preview model.</li>";
+  const candidateSection = model.candidates?.length ? renderCandidateSection(model) : "";
 
   return `<!doctype html>
 <html lang="ko">
@@ -85,6 +106,7 @@ export function renderPreviewHtml(model: PreviewModel): string {
     }
 
     .preview-pane,
+    .candidate-panel,
     .risk-panel {
       border: 1px solid var(--border);
       background: var(--panel-bg);
@@ -119,20 +141,52 @@ export function renderPreviewHtml(model: PreviewModel): string {
       border-radius: 3px;
     }
 
+    .candidate-panel,
     .risk-panel {
       margin-top: 16px;
       padding: 14px;
     }
 
+    .candidate-panel h2,
     .risk-panel h2 {
       margin: 0 0 8px;
       font-size: 14px;
     }
 
+    .candidate-list,
     .risk-panel ul {
       margin: 0;
       padding-left: 18px;
       color: var(--muted);
+    }
+
+    .candidate-list li + li {
+      margin-top: 10px;
+    }
+
+    .candidate-selected {
+      color: var(--text);
+    }
+
+    .candidate-badge {
+      display: inline-block;
+      margin-left: 8px;
+      padding: 1px 6px;
+      border-radius: 999px;
+      background: #2f81f7;
+      color: #ffffff;
+      font-size: 11px;
+      font-weight: 650;
+      vertical-align: middle;
+    }
+
+    .candidate-meta {
+      margin-top: 4px;
+      font-size: 12px;
+    }
+
+    .candidate-reason {
+      margin-top: 4px;
     }
 
     @media (max-width: 760px) {
@@ -154,6 +208,8 @@ export function renderPreviewHtml(model: PreviewModel): string {
     ${renderPane(model.before)}
     ${renderPane(model.after)}
   </section>
+
+  ${candidateSection}
 
   <section class="risk-panel">
     <h2>Report Risks</h2>
@@ -198,21 +254,47 @@ function normalizeReportSignals(signals: ThemeSignalReport["signals"] | undefine
 }
 
 function extractPatchSignals(patchRecipe: PatchRecipe): Partial<SignalValues> {
-  const customizations = patchRecipe.settings["workbench.colorCustomizations"];
-  const unscoped = findUnscopedColorCustomizations(customizations);
+  const workbenchCustomizations = findScopedSettings(patchRecipe.settings["workbench.colorCustomizations"]);
+  const tokenCustomizations = findScopedSettings(patchRecipe.settings["editor.tokenColorCustomizations"]);
 
   return removeEmptyValues({
-    error: asColorString(unscoped["editorError.foreground"]),
-    warning: asColorString(unscoped["editorWarning.foreground"]),
-    diffAdded: asColorString(unscoped["editorGutter.addedBackground"]),
-    diffDeleted: asColorString(unscoped["editorGutter.deletedBackground"])
+    comment: asColorString(tokenCustomizations.comments),
+    string: asColorString(tokenCustomizations.strings),
+    keyword: asColorString(tokenCustomizations.keywords),
+    error: asColorString(workbenchCustomizations["editorError.foreground"]),
+    warning: asColorString(workbenchCustomizations["editorWarning.foreground"]),
+    diffAdded: asColorString(workbenchCustomizations["editorGutter.addedBackground"]),
+    diffDeleted: asColorString(workbenchCustomizations["editorGutter.deletedBackground"])
   });
 }
 
-function findUnscopedColorCustomizations(customizations: Record<string, unknown>): Record<string, unknown> {
-  const themeBucketKey = Object.keys(customizations).find((key) => /^\[.+\]$/.test(key));
-  const themeBucket = themeBucketKey ? customizations[themeBucketKey] : undefined;
-  return isRecord(themeBucket) ? themeBucket : customizations;
+function renderCandidateSection(model: PreviewModel): string {
+  const items = (model.candidates || []).map((candidate) => {
+    const isSelected = candidate.id === model.selectedCandidateId;
+    const selectedBadge = isSelected ? '<span class="candidate-badge">Selected</span>' : "";
+    const itemClass = isSelected ? "candidate-selected" : "";
+
+    return `<li class="${itemClass}">
+      <strong>${escapeHtml(candidate.settingKey)}</strong>${selectedBadge}
+      <div class="candidate-meta">scope: ${escapeHtml(candidate.scope)} | risk: ${escapeHtml(candidate.riskType)} | confidence: ${escapeHtml(candidate.confidence.toFixed(2))}</div>
+      <div class="candidate-reason">${escapeHtml(candidate.reason)}</div>
+    </li>`;
+  }).join("");
+
+  return `<section class="candidate-panel">
+    <h2>Candidate Preview Selection</h2>
+    <ul class="candidate-list">${items}</ul>
+  </section>`;
+}
+
+function findScopedSettings(setting: PlainSetting | undefined): Record<string, unknown> {
+  if (!isRecord(setting)) {
+    return {};
+  }
+
+  const themeBucketKey = Object.keys(setting).find((key) => /^\[.+\]$/.test(key));
+  const themeBucket = themeBucketKey ? setting[themeBucketKey] : undefined;
+  return isRecord(themeBucket) ? themeBucket : setting;
 }
 
 function removeEmptyValues(value: Partial<SignalValues>): Partial<SignalValues> {

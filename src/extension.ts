@@ -12,7 +12,7 @@ import {
 } from "./themePatch";
 import { collectThemeProbe } from "./themeProbe";
 import { createThemeSignalReport } from "./themeReport";
-import type { RollbackSnapshot } from "./types";
+import type { PatchCandidate, RollbackSnapshot } from "./types";
 
 export function activate(context: vscode.ExtensionContext): void {
   const output = vscode.window.createOutputChannel(OUTPUT_CHANNEL_NAME);
@@ -106,17 +106,7 @@ export function activate(context: vscode.ExtensionContext): void {
       });
       const report = createThemeSignalReport(probe);
       const previewModel = createPreviewModel(report, POC_PATCH_RECIPE);
-      const panel = vscode.window.createWebviewPanel(
-        "colorCalibrationBeforeAfterPreview",
-        "Color Calibration Preview",
-        vscode.ViewColumn.Beside,
-        {
-          enableScripts: false,
-          retainContextWhenHidden: true
-        }
-      );
-
-      panel.webview.html = renderPreviewHtml(previewModel);
+      openPreviewPanel(vscode, "colorCalibrationBeforeAfterPreview", "Color Calibration Preview", previewModel);
 
       output.appendLine(JSON.stringify({
         themeName: previewModel.themeName,
@@ -134,6 +124,69 @@ export function activate(context: vscode.ExtensionContext): void {
       output.appendLine(`Before/after preview failed: ${message}`);
       console.error("[Color Calibration Before/After Preview] Failed", error);
       vscode.window.showErrorMessage(`Before/after preview failed: ${message}`);
+    }
+  });
+
+  const openCandidatePreviewCommand = vscode.commands.registerCommand(COMMAND_IDS.openCandidatePreview, async () => {
+    output.show(true);
+    output.appendLine(`[${new Date().toISOString()}] Candidate preview started.`);
+
+    try {
+      const probe = await collectThemeProbe(vscode, {
+        includeThemeDefinitions: true
+      });
+      const report = createThemeSignalReport(probe);
+      const candidates = createPatchCandidates(report);
+
+      if (candidates.length === 0) {
+        output.appendLine("Candidate preview skipped: no-candidates.");
+        vscode.window.showWarningMessage("No patch candidates were generated for the current theme.");
+        return;
+      }
+
+      const selectedItem = await vscode.window.showQuickPick(
+        candidates.map((candidate) => toCandidateQuickPickItem(candidate)),
+        {
+          canPickMany: false,
+          title: "Color Calibration: Open Candidate Preview",
+          placeHolder: "Select one candidate to preview."
+        }
+      );
+
+      if (!selectedItem) {
+        output.appendLine("Candidate preview cancelled.");
+        return;
+      }
+
+      const patchRecipe = createPatchRecipeFromCandidates([selectedItem.candidate], report.theme.configuredName);
+      const previewModel = createPreviewModel(report, patchRecipe, {
+        candidates,
+        selectedCandidateId: selectedItem.candidate.id
+      });
+
+      openPreviewPanel(
+        vscode,
+        "colorCalibrationCandidatePreview",
+        "Color Calibration Candidate Preview",
+        previewModel
+      );
+
+      output.appendLine(JSON.stringify({
+        themeName: previewModel.themeName,
+        selectedCandidateId: selectedItem.candidate.id,
+        candidateCount: candidates.length,
+        after: previewModel.after.signals
+      }, null, 2));
+      console.log("[Color Calibration Candidate Preview]", previewModel);
+
+      vscode.window.showInformationMessage(
+        `Candidate preview opened for ${previewModel.themeName}: ${selectedItem.candidate.settingKey}.`
+      );
+    } catch (error) {
+      const message = getErrorMessage(error);
+      output.appendLine(`Candidate preview failed: ${message}`);
+      console.error("[Color Calibration Candidate Preview] Failed", error);
+      vscode.window.showErrorMessage(`Candidate preview failed: ${message}`);
     }
   });
 
@@ -214,6 +267,7 @@ export function activate(context: vscode.ExtensionContext): void {
     printSignalReportCommand,
     printPatchCandidatesCommand,
     openBeforeAfterPreviewCommand,
+    openCandidatePreviewCommand,
     applyPatchCommand,
     rollbackPatchCommand
   );
@@ -223,4 +277,36 @@ export function deactivate(): void {}
 
 function getErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+interface CandidateQuickPickItem extends vscode.QuickPickItem {
+  candidate: PatchCandidate;
+}
+
+function toCandidateQuickPickItem(candidate: PatchCandidate): CandidateQuickPickItem {
+  return {
+    label: candidate.settingKey,
+    description: `${candidate.scope} | ${candidate.riskType} | confidence ${candidate.confidence.toFixed(2)}`,
+    detail: candidate.reason,
+    candidate
+  };
+}
+
+function openPreviewPanel(
+  vscodeApi: typeof vscode,
+  viewType: string,
+  title: string,
+  previewModel: ReturnType<typeof createPreviewModel>
+): void {
+  const panel = vscodeApi.window.createWebviewPanel(
+    viewType,
+    title,
+    vscode.ViewColumn.Beside,
+    {
+      enableScripts: false,
+      retainContextWhenHidden: true
+    }
+  );
+
+  panel.webview.html = renderPreviewHtml(previewModel);
 }
