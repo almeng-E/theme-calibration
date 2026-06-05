@@ -8,7 +8,7 @@ const {
   parseJsonc,
   resolveRelativeThemePath,
   themeMatchesConfiguredName
-} = require("../src/themeProbe");
+} = require("../out/themeProbe");
 
 test("parseJsonc removes comments and trailing commas while preserving strings", () => {
   const parsed = parseJsonc(`{

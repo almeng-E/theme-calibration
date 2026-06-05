@@ -1,6 +1,16 @@
-"use strict";
+import type {
+  InstalledThemeEntry,
+  ThemeDefinition,
+  ThemeProbe,
+  ThemeRisk,
+  ThemeSignal,
+  ThemeSignalName,
+  ThemeSignalReport,
+  ThemeSignals,
+  TokenColorRule
+} from "./types";
 
-const TEXT_SIGNAL_NAMES = [
+const TEXT_SIGNAL_NAMES: ThemeSignalName[] = [
   "foreground",
   "comment",
   "string",
@@ -9,7 +19,7 @@ const TEXT_SIGNAL_NAMES = [
   "warning"
 ];
 
-const SIMILAR_SIGNAL_PAIRS = [
+const SIMILAR_SIGNAL_PAIRS: Array<[ThemeSignalName, ThemeSignalName]> = [
   ["comment", "string"],
   ["string", "diffDeleted"],
   ["error", "diffDeleted"],
@@ -17,12 +27,19 @@ const SIMILAR_SIGNAL_PAIRS = [
   ["diffAdded", "string"]
 ];
 
-function createThemeSignalReport(probe) {
-  const configuredName = probe && probe.currentTheme && probe.currentTheme.configuredName;
-  const activeKind = probe && probe.currentTheme && probe.currentTheme.activeKind;
+export interface ParsedColor {
+  r: number;
+  g: number;
+  b: number;
+  a: number;
+}
+
+export function createThemeSignalReport(probe: Partial<ThemeProbe> | undefined): ThemeSignalReport {
+  const configuredName = probe?.currentTheme?.configuredName;
+  const activeKind = probe?.currentTheme?.activeKind;
   const matchedTheme = findLoadedCurrentTheme(probe);
 
-  if (!matchedTheme) {
+  if (!matchedTheme || matchedTheme.themeDefinition?.status !== "loaded") {
     return {
       generatedAt: new Date().toISOString(),
       theme: {
@@ -35,7 +52,7 @@ function createThemeSignalReport(probe) {
       risks: [
         {
           type: "missingThemeDefinition",
-          message: "현재 테마 정의를 찾지 못해 signal report를 생성할 수 없습니다."
+          message: "Current theme definition could not be loaded, so no signal report was generated."
         }
       ]
     };
@@ -51,9 +68,9 @@ function createThemeSignalReport(probe) {
     theme: {
       configuredName,
       activeKind,
-      id: matchedTheme.theme && matchedTheme.theme.id,
-      label: matchedTheme.theme && matchedTheme.theme.label,
-      extensionId: matchedTheme.extension && matchedTheme.extension.id,
+      id: matchedTheme.theme.id,
+      label: matchedTheme.theme.label,
+      extensionId: matchedTheme.extension.id,
       definitionStatus: matchedTheme.themeDefinition.status
     },
     signals,
@@ -62,65 +79,62 @@ function createThemeSignalReport(probe) {
   };
 }
 
-function extractSignals(definition) {
+function extractSignals(definition: ThemeDefinition): ThemeSignals {
   const colors = definition.colors || {};
   const tokenColors = Array.isArray(definition.tokenColors) ? definition.tokenColors : [];
-  const signals = {};
+  const signals: ThemeSignals = {};
 
-  addSignal(signals, "background", firstColor(colors, [
-    "editor.background"
-  ]));
-  addSignal(signals, "foreground", firstColor(colors, [
-    "editor.foreground",
-    "foreground"
-  ]));
-  addSignal(signals, "comment", findTokenColor(tokenColors, "comment", (scope) =>
-    scope === "comment" || scope.startsWith("comment.")
-  ));
-  addSignal(signals, "string", findTokenColor(tokenColors, "string", (scope) =>
-    scope === "string" || scope.startsWith("string.")
-  ));
-  addSignal(signals, "keyword", findTokenColor(tokenColors, "keyword", (scope) =>
-    scope === "keyword" || scope.startsWith("keyword.")
-  ));
-  addSignal(signals, "error", firstColor(colors, [
-    "editorError.foreground",
-    "errorForeground",
-    "list.errorForeground"
-  ]));
-  addSignal(signals, "warning", firstColor(colors, [
-    "editorWarning.foreground",
-    "list.warningForeground",
-    "inputValidation.warningBorder"
-  ]));
-  addSignal(signals, "diffAdded", firstColor(colors, [
-    "editorGutter.addedBackground",
-    "minimapGutter.addedBackground",
-    "diffEditor.insertedTextBackground"
-  ]));
-  addSignal(signals, "diffDeleted", firstColor(colors, [
-    "editorGutter.deletedBackground",
-    "minimapGutter.deletedBackground",
-    "diffEditor.removedTextBackground"
-  ]));
+  addSignal(signals, "background", firstColor(colors, ["editor.background"]));
+  addSignal(signals, "foreground", firstColor(colors, ["editor.foreground", "foreground"]));
+  addSignal(
+    signals,
+    "comment",
+    findTokenColor(tokenColors, "comment", (scope) => scope === "comment" || scope.startsWith("comment."))
+  );
+  addSignal(
+    signals,
+    "string",
+    findTokenColor(tokenColors, "string", (scope) => scope === "string" || scope.startsWith("string."))
+  );
+  addSignal(
+    signals,
+    "keyword",
+    findTokenColor(tokenColors, "keyword", (scope) => scope === "keyword" || scope.startsWith("keyword."))
+  );
+  addSignal(signals, "error", firstColor(colors, ["editorError.foreground", "errorForeground", "list.errorForeground"]));
+  addSignal(
+    signals,
+    "warning",
+    firstColor(colors, ["editorWarning.foreground", "list.warningForeground", "inputValidation.warningBorder"])
+  );
+  addSignal(
+    signals,
+    "diffAdded",
+    firstColor(colors, ["editorGutter.addedBackground", "minimapGutter.addedBackground", "diffEditor.insertedTextBackground"])
+  );
+  addSignal(
+    signals,
+    "diffDeleted",
+    firstColor(colors, ["editorGutter.deletedBackground", "minimapGutter.deletedBackground", "diffEditor.removedTextBackground"])
+  );
 
   return signals;
 }
 
-function calculateSignalContrasts(signals) {
-  const background = signals.background && signals.background.value;
-  const contrast = {};
+function calculateSignalContrasts(signals: ThemeSignals): ThemeSignalReport["contrast"] {
+  const background = signals.background?.value;
+  const contrast: ThemeSignalReport["contrast"] = {};
 
   if (!background) {
     return contrast;
   }
 
-  for (const signalName of Object.keys(signals)) {
+  for (const signalName of Object.keys(signals) as ThemeSignalName[]) {
     if (signalName === "background") {
       continue;
     }
 
-    const value = signals[signalName].value;
+    const value = signals[signalName]?.value;
     if (value) {
       contrast[signalName] = {
         ratio: calculateContrastRatio(value, background)
@@ -131,18 +145,18 @@ function calculateSignalContrasts(signals) {
   return contrast;
 }
 
-function createRisks(signals, contrast) {
-  const risks = [];
+function createRisks(signals: ThemeSignals, contrast: ThemeSignalReport["contrast"]): ThemeRisk[] {
+  const risks: ThemeRisk[] = [];
 
   for (const signalName of TEXT_SIGNAL_NAMES) {
-    const item = contrast[signalName];
+    const item = contrast[signalName as Exclude<ThemeSignalName, "background">];
     if (item && item.ratio < 4.5) {
       risks.push({
         type: "lowContrast",
         signal: signalName,
         contrastRatio: item.ratio,
         threshold: 4.5,
-        message: `${signalName} 색상이 editor background 대비 낮을 수 있습니다.`
+        message: `${signalName} has low contrast against the editor background.`
       });
     }
   }
@@ -152,13 +166,19 @@ function createRisks(signals, contrast) {
       continue;
     }
 
-    const distance = calculateColorDistance(signals[left].value, signals[right].value);
+    const leftSignal = signals[left];
+    const rightSignal = signals[right];
+    if (!leftSignal || !rightSignal) {
+      continue;
+    }
+
+    const distance = calculateColorDistance(leftSignal.value, rightSignal.value);
     if (distance <= 35) {
       risks.push({
         type: "similarSignal",
         signals: [left, right],
         colorDistance: distance,
-        message: `${left}와 ${right} 색상이 시각적으로 가까울 수 있습니다.`
+        message: `${left} and ${right} are visually close.`
       });
     }
   }
@@ -166,14 +186,14 @@ function createRisks(signals, contrast) {
   if (risks.length === 0) {
     risks.push({
       type: "noObviousRisk",
-      message: "현재 단순 기준에서는 즉시 눈에 띄는 위험 신호를 찾지 못했습니다."
+      message: "No obvious signal risk was detected by the current simple rules."
     });
   }
 
   return risks;
 }
 
-function calculateContrastRatio(foregroundHex, backgroundHex) {
+export function calculateContrastRatio(foregroundHex: string, backgroundHex: string): number {
   const foreground = resolveColorOverBackground(parseHexColor(foregroundHex), parseHexColor(backgroundHex));
   const background = parseHexColor(backgroundHex);
   const lighter = Math.max(relativeLuminance(foreground), relativeLuminance(background));
@@ -182,7 +202,7 @@ function calculateContrastRatio(foregroundHex, backgroundHex) {
   return roundToTwo((lighter + 0.05) / (darker + 0.05));
 }
 
-function calculateColorDistance(leftHex, rightHex) {
+export function calculateColorDistance(leftHex: string, rightHex: string): number {
   const left = parseHexColor(leftHex);
   const right = parseHexColor(rightHex);
   const distance = Math.sqrt(
@@ -194,18 +214,14 @@ function calculateColorDistance(leftHex, rightHex) {
   return roundToTwo(distance);
 }
 
-function parseHexColor(hex) {
-  if (typeof hex !== "string") {
-    throw new Error("Color must be a hex string.");
-  }
-
+export function parseHexColor(hex: string): ParsedColor {
   const normalized = hex.trim();
   const match = normalized.match(/^#([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i);
   if (!match) {
     throw new Error(`Unsupported hex color: ${hex}`);
   }
 
-  const value = match[1];
+  const value = match[1] || "";
 
   if (value.length === 3) {
     return {
@@ -224,7 +240,7 @@ function parseHexColor(hex) {
   };
 }
 
-function relativeLuminance(color) {
+function relativeLuminance(color: ParsedColor): number {
   const channels = [color.r, color.g, color.b].map((channel) => {
     const normalized = channel / 255;
     return normalized <= 0.03928
@@ -235,7 +251,7 @@ function relativeLuminance(color) {
   return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2];
 }
 
-function resolveColorOverBackground(foreground, background) {
+function resolveColorOverBackground(foreground: ParsedColor, background: ParsedColor): ParsedColor {
   if (foreground.a >= 1) {
     return foreground;
   }
@@ -248,7 +264,7 @@ function resolveColorOverBackground(foreground, background) {
   };
 }
 
-function firstColor(colors, keys) {
+function firstColor(colors: Record<string, string>, keys: string[]): ThemeSignal | undefined {
   for (const key of keys) {
     if (colors[key]) {
       return {
@@ -261,9 +277,13 @@ function firstColor(colors, keys) {
   return undefined;
 }
 
-function findTokenColor(tokenColors, signalName, scopeMatcher) {
+function findTokenColor(
+  tokenColors: TokenColorRule[],
+  signalName: ThemeSignalName,
+  scopeMatcher: (scope: string) => boolean
+): ThemeSignal | undefined {
   for (const rule of tokenColors) {
-    const foreground = rule && rule.settings && rule.settings.foreground;
+    const foreground = rule.settings?.foreground;
     if (!foreground) {
       continue;
     }
@@ -280,27 +300,24 @@ function findTokenColor(tokenColors, signalName, scopeMatcher) {
   return undefined;
 }
 
-function findLoadedCurrentTheme(probe) {
-  const matches = probe && probe.currentTheme && probe.currentTheme.matchedInstalledThemes;
+function findLoadedCurrentTheme(probe: Partial<ThemeProbe> | undefined): InstalledThemeEntry | undefined {
+  const matches = probe?.currentTheme?.matchedInstalledThemes;
   if (!Array.isArray(matches)) {
     return undefined;
   }
 
   return matches.find((entry) =>
-    entry &&
-    entry.themeDefinition &&
-    entry.themeDefinition.status === "loaded" &&
-    entry.themeDefinition.resolvedDefinition
+    entry.themeDefinition?.status === "loaded" && Boolean(entry.themeDefinition.resolvedDefinition)
   );
 }
 
-function addSignal(signals, name, signal) {
-  if (signal && signal.value) {
+function addSignal(signals: ThemeSignals, name: ThemeSignalName, signal: ThemeSignal | undefined): void {
+  if (signal?.value) {
     signals[name] = signal;
   }
 }
 
-function normalizeScopes(scope) {
+function normalizeScopes(scope: string | string[] | undefined): string[] {
   if (Array.isArray(scope)) {
     return scope.flatMap(normalizeScopes);
   }
@@ -315,13 +332,6 @@ function normalizeScopes(scope) {
     .filter(Boolean);
 }
 
-function roundToTwo(value) {
+function roundToTwo(value: number): number {
   return Math.round(value * 100) / 100;
 }
-
-module.exports = {
-  calculateColorDistance,
-  calculateContrastRatio,
-  createThemeSignalReport,
-  parseHexColor
-};

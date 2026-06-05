@@ -1,14 +1,19 @@
-"use strict";
+import { ROLLBACK_STATE_KEY, SETTINGS_ORDER } from "./constants";
+import type {
+  PatchPlan,
+  PatchRecipe,
+  PatchableSettings,
+  PlainSetting,
+  RollbackPlan,
+  RollbackSnapshot,
+  SettingId,
+  SettingsUpdate,
+  VscodeSettingsApi
+} from "./types";
 
-const ROLLBACK_STATE_KEY = "colorCalibration.pocHardcodedPatch.rollbackSnapshot";
+export { ROLLBACK_STATE_KEY, SETTINGS_ORDER };
 
-const SETTINGS_ORDER = [
-  "workbench.colorCustomizations",
-  "editor.tokenColorCustomizations",
-  "editor.semanticTokenColorCustomizations"
-];
-
-const POC_PATCH_RECIPE = {
+export const POC_PATCH_RECIPE: PatchRecipe = {
   id: "poc-hardcoded-contrast-v1",
   description: "Hardcoded conservative contrast patch for settings overlay and rollback PoC.",
   settings: {
@@ -25,7 +30,10 @@ const POC_PATCH_RECIPE = {
   }
 };
 
-function createThemeScopedPatchRecipe(themeName, baseRecipe = POC_PATCH_RECIPE) {
+export function createThemeScopedPatchRecipe(
+  themeName: string | undefined,
+  baseRecipe: PatchRecipe = POC_PATCH_RECIPE
+): PatchRecipe {
   if (!themeName) {
     return baseRecipe;
   }
@@ -41,9 +49,13 @@ function createThemeScopedPatchRecipe(themeName, baseRecipe = POC_PATCH_RECIPE) 
   };
 }
 
-function createPatchPlan(existingSettings, patchRecipe = POC_PATCH_RECIPE, now = new Date()) {
-  const nextSettings = {};
-  const rollbackSettings = {};
+export function createPatchPlan(
+  existingSettings: PatchableSettings,
+  patchRecipe: PatchRecipe = POC_PATCH_RECIPE,
+  now = new Date()
+): PatchPlan {
+  const nextSettings = createEmptyPatchableSettings();
+  const rollbackSettings = createEmptyPatchableSettings();
 
   for (const settingId of SETTINGS_ORDER) {
     const existingValue = clonePlainSetting(existingSettings[settingId]);
@@ -65,7 +77,7 @@ function createPatchPlan(existingSettings, patchRecipe = POC_PATCH_RECIPE, now =
   };
 }
 
-function createRollbackPlan(rollbackSnapshot) {
+export function createRollbackPlan(rollbackSnapshot: RollbackSnapshot | undefined): RollbackPlan {
   if (!rollbackSnapshot || !rollbackSnapshot.settings) {
     throw new Error("Rollback snapshot is missing.");
   }
@@ -77,7 +89,7 @@ function createRollbackPlan(rollbackSnapshot) {
   };
 }
 
-function createSettingsUpdates(settingsById) {
+export function createSettingsUpdates(settingsById: PatchableSettings): SettingsUpdate[] {
   return SETTINGS_ORDER.map((settingId) => {
     const [section, ...keyParts] = settingId.split(".");
 
@@ -89,8 +101,8 @@ function createSettingsUpdates(settingsById) {
   });
 }
 
-function readPatchableSettings(vscode, target) {
-  const settings = {};
+export function readPatchableSettings(vscode: VscodeSettingsApi, target: unknown): PatchableSettings {
+  const settings = createEmptyPatchableSettings();
 
   for (const settingId of SETTINGS_ORDER) {
     const [section, ...keyParts] = settingId.split(".");
@@ -103,7 +115,25 @@ function readPatchableSettings(vscode, target) {
   return settings;
 }
 
-function getInspectedValueForTarget(vscode, inspected, target) {
+export async function applySettingsUpdates(
+  vscode: VscodeSettingsApi,
+  settingsUpdates: SettingsUpdate[],
+  target: unknown
+): Promise<void> {
+  for (const update of settingsUpdates) {
+    const config = vscode.workspace.getConfiguration(update.section);
+    if (!config.update) {
+      throw new Error(`Configuration update API is unavailable for ${update.section}.${update.key}.`);
+    }
+    await config.update(update.key, update.value, target);
+  }
+}
+
+function getInspectedValueForTarget(
+  vscode: VscodeSettingsApi,
+  inspected: { globalValue?: unknown; workspaceValue?: unknown; workspaceFolderValue?: unknown },
+  target: unknown
+): PlainSetting {
   if (vscode.ConfigurationTarget && target === vscode.ConfigurationTarget.Global) {
     return clonePlainSetting(inspected.globalValue);
   }
@@ -119,21 +149,13 @@ function getInspectedValueForTarget(vscode, inspected, target) {
   return clonePlainSetting(inspected.globalValue);
 }
 
-async function applySettingsUpdates(vscode, settingsUpdates, target) {
-  for (const update of settingsUpdates) {
-    await vscode.workspace
-      .getConfiguration(update.section)
-      .update(update.key, update.value, target);
-  }
-}
-
-function mergePlainObjects(base, override) {
+function mergePlainObjects(base: PlainSetting, override: PlainSetting): PlainSetting {
   const baseClone = clonePlainSetting(base);
   const overrideClone = clonePlainSetting(override);
 
   for (const [key, value] of Object.entries(overrideClone)) {
     if (isPlainObject(baseClone[key]) && isPlainObject(value)) {
-      baseClone[key] = mergePlainObjects(baseClone[key], value);
+      baseClone[key] = mergePlainObjects(baseClone[key] as PlainSetting, value);
     } else {
       baseClone[key] = value;
     }
@@ -142,25 +164,22 @@ function mergePlainObjects(base, override) {
   return baseClone;
 }
 
-function clonePlainSetting(value) {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
+function clonePlainSetting(value: unknown): PlainSetting {
+  if (!isPlainObject(value)) {
     return {};
   }
 
-  return JSON.parse(JSON.stringify(value));
+  return JSON.parse(JSON.stringify(value)) as PlainSetting;
 }
 
-function isPlainObject(value) {
+function createEmptyPatchableSettings(): PatchableSettings {
+  return {
+    "workbench.colorCustomizations": {},
+    "editor.tokenColorCustomizations": {},
+    "editor.semanticTokenColorCustomizations": {}
+  };
+}
+
+function isPlainObject(value: unknown): value is PlainSetting {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
-
-module.exports = {
-  POC_PATCH_RECIPE,
-  ROLLBACK_STATE_KEY,
-  SETTINGS_ORDER,
-  applySettingsUpdates,
-  createPatchPlan,
-  createRollbackPlan,
-  createThemeScopedPatchRecipe,
-  readPatchableSettings
-};

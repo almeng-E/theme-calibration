@@ -17,7 +17,7 @@
     "onCommand:colorCalibration.applyHardcodedPatch",
     "onCommand:colorCalibration.rollbackHardcodedPatch"
   ],
-  "main": "./src/extension.js",
+  "main": "./out/extension.js",
   "contributes": {
     "commands": [
       {
@@ -43,6 +43,13 @@
     ]
   },
   "scripts": {
-    "test": "node --test"
+    "clean": "node -e \"require('fs').rmSync('out', { recursive: true, force: true })\"",
+    "compile": "tsc -p .",
+    "test": "npm run compile && node --test"
+  },
+  "devDependencies": {
+    "@types/node": "^18.19.130",
+    "@types/vscode": "^1.85.0",
+    "typescript": "^5.4.5"
   }
 }

@@ -1,26 +1,22 @@
-"use strict";
-
-const vscode = require("vscode");
-const { collectThemeProbe } = require("./themeProbe");
-const { createThemeSignalReport } = require("./themeReport");
-const {
-  createPreviewModel,
-  renderPreviewHtml
-} = require("./previewWebview");
-const {
+import * as vscode from "vscode";
+import { COMMAND_IDS, OUTPUT_CHANNEL_NAME, ROLLBACK_STATE_KEY } from "./constants";
+import { createPreviewModel, renderPreviewHtml } from "./previewWebview";
+import {
   POC_PATCH_RECIPE,
-  ROLLBACK_STATE_KEY,
   applySettingsUpdates,
   createPatchPlan,
   createRollbackPlan,
   createThemeScopedPatchRecipe,
   readPatchableSettings
-} = require("./themePatch");
+} from "./themePatch";
+import { collectThemeProbe } from "./themeProbe";
+import { createThemeSignalReport } from "./themeReport";
+import type { RollbackSnapshot } from "./types";
 
-function activate(context) {
-  const output = vscode.window.createOutputChannel("Color Calibration Theme Probe");
+export function activate(context: vscode.ExtensionContext): void {
+  const output = vscode.window.createOutputChannel(OUTPUT_CHANNEL_NAME);
 
-  const printProbeCommand = vscode.commands.registerCommand("colorCalibration.printThemeProbe", async () => {
+  const printProbeCommand = vscode.commands.registerCommand(COMMAND_IDS.printThemeProbe, async () => {
     output.show(true);
     output.appendLine(`[${new Date().toISOString()}] Theme probe started.`);
 
@@ -37,14 +33,14 @@ function activate(context) {
         `Theme probe printed: current theme "${probe.currentTheme.configuredName || "unknown"}", installed themes ${probe.installedThemes.length}.`
       );
     } catch (error) {
-      const message = error && error.message ? error.message : String(error);
+      const message = getErrorMessage(error);
       output.appendLine(`Theme probe failed: ${message}`);
       console.error("[Color Calibration Theme Probe] Failed", error);
       vscode.window.showErrorMessage(`Theme probe failed: ${message}`);
     }
   });
 
-  const printSignalReportCommand = vscode.commands.registerCommand("colorCalibration.printThemeSignalReport", async () => {
+  const printSignalReportCommand = vscode.commands.registerCommand(COMMAND_IDS.printThemeSignalReport, async () => {
     output.show(true);
     output.appendLine(`[${new Date().toISOString()}] Theme signal report started.`);
 
@@ -62,14 +58,14 @@ function activate(context) {
         `Theme signal report printed: ${report.theme.configuredName || "unknown"}, risks ${report.risks.length}.`
       );
     } catch (error) {
-      const message = error && error.message ? error.message : String(error);
+      const message = getErrorMessage(error);
       output.appendLine(`Theme signal report failed: ${message}`);
       console.error("[Color Calibration Theme Signal Report] Failed", error);
       vscode.window.showErrorMessage(`Theme signal report failed: ${message}`);
     }
   });
 
-  const openBeforeAfterPreviewCommand = vscode.commands.registerCommand("colorCalibration.openBeforeAfterPreview", async () => {
+  const openBeforeAfterPreviewCommand = vscode.commands.registerCommand(COMMAND_IDS.openBeforeAfterPreview, async () => {
     output.show(true);
     output.appendLine(`[${new Date().toISOString()}] Before/after preview started.`);
 
@@ -103,20 +99,20 @@ function activate(context) {
         `Before/after preview opened for ${previewModel.themeName}.`
       );
     } catch (error) {
-      const message = error && error.message ? error.message : String(error);
+      const message = getErrorMessage(error);
       output.appendLine(`Before/after preview failed: ${message}`);
       console.error("[Color Calibration Before/After Preview] Failed", error);
       vscode.window.showErrorMessage(`Before/after preview failed: ${message}`);
     }
   });
 
-  const applyPatchCommand = vscode.commands.registerCommand("colorCalibration.applyHardcodedPatch", async () => {
+  const applyPatchCommand = vscode.commands.registerCommand(COMMAND_IDS.applyHardcodedPatch, async () => {
     output.show(true);
     output.appendLine(`[${new Date().toISOString()}] Hardcoded patch apply started.`);
 
     try {
       const target = vscode.ConfigurationTarget.Global;
-      const currentThemeName = vscode.workspace.getConfiguration("workbench").get("colorTheme");
+      const currentThemeName = vscode.workspace.getConfiguration("workbench").get<string | undefined>("colorTheme");
       const patchRecipe = createThemeScopedPatchRecipe(currentThemeName, POC_PATCH_RECIPE);
       const existingSettings = readPatchableSettings(vscode, target);
       const patchPlan = createPatchPlan(existingSettings, patchRecipe);
@@ -138,19 +134,19 @@ function activate(context) {
         `Hardcoded theme patch applied. Rollback snapshot saved for ${patchPlan.recipeId}.`
       );
     } catch (error) {
-      const message = error && error.message ? error.message : String(error);
+      const message = getErrorMessage(error);
       output.appendLine(`Hardcoded patch apply failed: ${message}`);
       console.error("[Color Calibration Theme Probe] Hardcoded patch apply failed", error);
       vscode.window.showErrorMessage(`Hardcoded patch apply failed: ${message}`);
     }
   });
 
-  const rollbackPatchCommand = vscode.commands.registerCommand("colorCalibration.rollbackHardcodedPatch", async () => {
+  const rollbackPatchCommand = vscode.commands.registerCommand(COMMAND_IDS.rollbackHardcodedPatch, async () => {
     output.show(true);
     output.appendLine(`[${new Date().toISOString()}] Hardcoded patch rollback started.`);
 
     try {
-      const rollbackSnapshot = context.globalState.get(ROLLBACK_STATE_KEY);
+      const rollbackSnapshot = context.globalState.get<RollbackSnapshot>(ROLLBACK_STATE_KEY);
 
       if (!rollbackSnapshot) {
         output.appendLine("No rollback snapshot found.");
@@ -174,7 +170,7 @@ function activate(context) {
         `Hardcoded theme patch rolled back for ${rollbackPlan.recipeId}.`
       );
     } catch (error) {
-      const message = error && error.message ? error.message : String(error);
+      const message = getErrorMessage(error);
       output.appendLine(`Hardcoded patch rollback failed: ${message}`);
       console.error("[Color Calibration Theme Probe] Hardcoded patch rollback failed", error);
       vscode.window.showErrorMessage(`Hardcoded patch rollback failed: ${message}`);
@@ -191,9 +187,8 @@ function activate(context) {
   );
 }
 
-function deactivate() {}
+export function deactivate(): void {}
 
-module.exports = {
-  activate,
-  deactivate
-};
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
