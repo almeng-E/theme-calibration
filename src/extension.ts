@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
 import { COMMAND_IDS, OUTPUT_CHANNEL_NAME, ROLLBACK_STATE_KEY } from "./constants";
+import { createPatchCandidates, createPatchRecipeFromCandidates } from "./patchCandidate";
 import { createPreviewModel, renderPreviewHtml } from "./previewWebview";
 import {
   POC_PATCH_RECIPE,
@@ -62,6 +63,36 @@ export function activate(context: vscode.ExtensionContext): void {
       output.appendLine(`Theme signal report failed: ${message}`);
       console.error("[Color Calibration Theme Signal Report] Failed", error);
       vscode.window.showErrorMessage(`Theme signal report failed: ${message}`);
+    }
+  });
+
+  const printPatchCandidatesCommand = vscode.commands.registerCommand(COMMAND_IDS.printPatchCandidates, async () => {
+    output.show(true);
+    output.appendLine(`[${new Date().toISOString()}] Patch candidate generation started.`);
+
+    try {
+      const probe = await collectThemeProbe(vscode, {
+        includeThemeDefinitions: true
+      });
+      const report = createThemeSignalReport(probe);
+      const candidates = createPatchCandidates(report);
+      const recipe = createPatchRecipeFromCandidates(candidates, report.theme.configuredName);
+
+      output.appendLine(JSON.stringify({
+        theme: report.theme,
+        candidates,
+        recipe
+      }, null, 2));
+      console.log("[Color Calibration Patch Candidates]", { report, candidates, recipe });
+
+      vscode.window.showInformationMessage(
+        `Patch candidates printed: ${report.theme.configuredName || "unknown"}, candidates ${candidates.length}.`
+      );
+    } catch (error) {
+      const message = getErrorMessage(error);
+      output.appendLine(`Patch candidate generation failed: ${message}`);
+      console.error("[Color Calibration Patch Candidates] Failed", error);
+      vscode.window.showErrorMessage(`Patch candidate generation failed: ${message}`);
     }
   });
 
@@ -181,6 +212,7 @@ export function activate(context: vscode.ExtensionContext): void {
     output,
     printProbeCommand,
     printSignalReportCommand,
+    printPatchCandidatesCommand,
     openBeforeAfterPreviewCommand,
     applyPatchCommand,
     rollbackPatchCommand

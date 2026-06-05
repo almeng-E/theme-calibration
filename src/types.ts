@@ -234,6 +234,24 @@ export interface PatchRecipe {
   settings: Record<SettingId, PlainSetting>;
 }
 
+export type PatchCandidateScope = "global" | "theme";
+
+export interface PatchCandidateSettingChange {
+  settingId: SettingId;
+  settingKey: string;
+  suggestedColor: string;
+}
+
+export interface PatchCandidate extends PatchCandidateSettingChange {
+  id: string;
+  riskType: string;
+  signals: ThemeSignalName[];
+  currentSignals: Partial<Record<ThemeSignalName, string>>;
+  reason: string;
+  scope: PatchCandidateScope;
+  confidence: number;
+}
+
 export type PatchableSettings = Record<SettingId, PlainSetting>;
 
 export interface SettingsUpdate {
