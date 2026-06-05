@@ -289,4 +289,6 @@ export interface PreviewModel {
   before: PreviewPane;
   after: PreviewPane;
   risks: ThemeRisk[];
+  candidates?: PatchCandidate[];
+  selectedCandidateId?: string;
 }

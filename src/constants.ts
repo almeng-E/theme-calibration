@@ -7,6 +7,7 @@ export const COMMAND_IDS = {
   printThemeSignalReport: "colorCalibration.printThemeSignalReport",
   printPatchCandidates: "colorCalibration.printPatchCandidates",
   openBeforeAfterPreview: "colorCalibration.openBeforeAfterPreview",
+  openCandidatePreview: "colorCalibration.openCandidatePreview",
   applyHardcodedPatch: "colorCalibration.applyHardcodedPatch",
   rollbackHardcodedPatch: "colorCalibration.rollbackHardcodedPatch"
 } as const;
