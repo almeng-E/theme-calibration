@@ -5,6 +5,7 @@ export const OUTPUT_CHANNEL_NAME = "Color Calibration Theme Probe";
 export const COMMAND_IDS = {
   printThemeProbe: "colorCalibration.printThemeProbe",
   printThemeSignalReport: "colorCalibration.printThemeSignalReport",
+  printPatchCandidates: "colorCalibration.printPatchCandidates",
   openBeforeAfterPreview: "colorCalibration.openBeforeAfterPreview",
   applyHardcodedPatch: "colorCalibration.applyHardcodedPatch",
   rollbackHardcodedPatch: "colorCalibration.rollbackHardcodedPatch"
