@@ -6,7 +6,7 @@ const {
   calculateContrastRatio,
   createThemeSignalReport,
   parseHexColor
-} = require("../src/themeReport");
+} = require("../out/themeReport");
 
 test("parseHexColor supports rgb, rrggbb, and rrggbbaa hex values", () => {
   assert.deepEqual(parseHexColor("#abc"), { r: 170, g: 187, b: 204, a: 1 });

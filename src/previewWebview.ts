@@ -1,6 +1,6 @@
-"use strict";
+import type { PatchRecipe, PreviewModel, PreviewPane, SignalValues, ThemeRisk, ThemeSignalReport } from "./types";
 
-const SIGNAL_DEFAULTS = {
+const SIGNAL_DEFAULTS: SignalValues = {
   background: "#1e1e1e",
   foreground: "#d4d4d4",
   comment: "#6a9955",
@@ -12,15 +12,15 @@ const SIGNAL_DEFAULTS = {
   diffDeleted: "#f44747"
 };
 
-function createPreviewModel(report, patchRecipe) {
-  const beforeSignals = normalizeReportSignals(report && report.signals);
+export function createPreviewModel(report: Partial<ThemeSignalReport> | undefined, patchRecipe: PatchRecipe): PreviewModel {
+  const beforeSignals = normalizeReportSignals(report?.signals);
   const afterSignals = {
     ...beforeSignals,
     ...extractPatchSignals(patchRecipe)
   };
 
   return {
-    themeName: (report && report.theme && report.theme.configuredName) || "Unknown Theme",
+    themeName: report?.theme?.configuredName || "Unknown Theme",
     before: {
       title: "Before",
       signals: beforeSignals
@@ -29,15 +29,15 @@ function createPreviewModel(report, patchRecipe) {
       title: "After",
       signals: afterSignals
     },
-    risks: Array.isArray(report && report.risks) ? report.risks : []
+    risks: Array.isArray(report?.risks) ? report.risks : []
   };
 }
 
-function renderPreviewHtml(model) {
+export function renderPreviewHtml(model: PreviewModel): string {
   const safeThemeName = escapeHtml(model.themeName);
   const riskItems = model.risks.length > 0
     ? model.risks.map((risk) => `<li>${escapeHtml(formatRisk(risk))}</li>`).join("")
-    : "<li>현재 preview 기준에서 표시할 risk가 없습니다.</li>";
+    : "<li>No risk is available in the current preview model.</li>";
 
   return `<!doctype html>
 <html lang="ko">
@@ -148,7 +148,7 @@ function renderPreviewHtml(model) {
 </head>
 <body>
   <h1>Before/After Preview</h1>
-  <p class="subtitle">현재 테마: ${safeThemeName}</p>
+  <p class="subtitle">Current theme: ${safeThemeName}</p>
 
   <section class="preview-grid">
     ${renderPane(model.before)}
@@ -163,7 +163,7 @@ function renderPreviewHtml(model) {
 </html>`;
 }
 
-function renderPane(pane) {
+function renderPane(pane: PreviewPane): string {
   const s = pane.signals;
   const addedBackground = withAlphaFallback(s.diffAdded, "22");
   const deletedBackground = withAlphaFallback(s.diffDeleted, "22");
@@ -184,49 +184,44 @@ function renderPane(pane) {
 </article>`;
 }
 
-function normalizeReportSignals(signals) {
-  const normalized = {};
+function normalizeReportSignals(signals: ThemeSignalReport["signals"] | undefined): SignalValues {
+  const normalized = { ...SIGNAL_DEFAULTS };
 
-  for (const [name, fallback] of Object.entries(SIGNAL_DEFAULTS)) {
-    normalized[name] = signals && signals[name] && signals[name].value
-      ? signals[name].value
-      : fallback;
+  for (const name of Object.keys(SIGNAL_DEFAULTS) as Array<keyof SignalValues>) {
+    const signal = signals?.[name];
+    if (signal?.value) {
+      normalized[name] = signal.value;
+    }
   }
 
   return normalized;
 }
 
-function extractPatchSignals(patchRecipe) {
-  const customizations = patchRecipe &&
-    patchRecipe.settings &&
-    patchRecipe.settings["workbench.colorCustomizations"];
-
-  if (!customizations) {
-    return {};
-  }
-
+function extractPatchSignals(patchRecipe: PatchRecipe): Partial<SignalValues> {
+  const customizations = patchRecipe.settings["workbench.colorCustomizations"];
   const unscoped = findUnscopedColorCustomizations(customizations);
 
   return removeEmptyValues({
-    error: unscoped["editorError.foreground"],
-    warning: unscoped["editorWarning.foreground"],
-    diffAdded: unscoped["editorGutter.addedBackground"],
-    diffDeleted: unscoped["editorGutter.deletedBackground"]
+    error: asColorString(unscoped["editorError.foreground"]),
+    warning: asColorString(unscoped["editorWarning.foreground"]),
+    diffAdded: asColorString(unscoped["editorGutter.addedBackground"]),
+    diffDeleted: asColorString(unscoped["editorGutter.deletedBackground"])
   });
 }
 
-function findUnscopedColorCustomizations(customizations) {
+function findUnscopedColorCustomizations(customizations: Record<string, unknown>): Record<string, unknown> {
   const themeBucketKey = Object.keys(customizations).find((key) => /^\[.+\]$/.test(key));
-  return themeBucketKey ? customizations[themeBucketKey] : customizations;
+  const themeBucket = themeBucketKey ? customizations[themeBucketKey] : undefined;
+  return isRecord(themeBucket) ? themeBucket : customizations;
 }
 
-function removeEmptyValues(value) {
+function removeEmptyValues(value: Partial<SignalValues>): Partial<SignalValues> {
   return Object.fromEntries(
     Object.entries(value).filter(([, item]) => Boolean(item))
-  );
+  ) as Partial<SignalValues>;
 }
 
-function withAlphaFallback(hex, alpha) {
+function withAlphaFallback(hex: string, alpha: string): string {
   if (/^#[0-9a-f]{6}$/i.test(hex)) {
     return `${hex}${alpha}`;
   }
@@ -234,11 +229,11 @@ function withAlphaFallback(hex, alpha) {
   return hex;
 }
 
-function cssColor(value) {
+function cssColor(value: string | undefined): string {
   return escapeHtml(value || "#ffffff");
 }
 
-function formatRisk(risk) {
+function formatRisk(risk: ThemeRisk): string {
   if (risk.message) {
     return risk.message;
   }
@@ -250,7 +245,7 @@ function formatRisk(risk) {
   return risk.type || "unknown risk";
 }
 
-function escapeHtml(value) {
+function escapeHtml(value: unknown): string {
   return String(value)
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
@@ -259,7 +254,10 @@ function escapeHtml(value) {
     .replace(/'/g, "&#39;");
 }
 
-module.exports = {
-  createPreviewModel,
-  renderPreviewHtml
-};
+function asColorString(value: unknown): string | undefined {
+  return typeof value === "string" ? value : undefined;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}

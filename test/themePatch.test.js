@@ -8,7 +8,7 @@ const {
   createRollbackPlan,
   createThemeScopedPatchRecipe,
   readPatchableSettings
-} = require("../src/themePatch");
+} = require("../out/themePatch");
 
 test("createPatchPlan preserves existing overrides while applying PoC patch values", () => {
   const existingSettings = {

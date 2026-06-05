@@ -2,11 +2,11 @@
 
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { POC_PATCH_RECIPE } = require("../src/themePatch");
+const { POC_PATCH_RECIPE } = require("../out/themePatch");
 const {
   createPreviewModel,
   renderPreviewHtml
-} = require("../src/previewWebview");
+} = require("../out/previewWebview");
 
 test("createPreviewModel applies hardcoded patch colors to after signals only", () => {
   const report = createFakeReport("Sample Dark");

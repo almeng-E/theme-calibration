@@ -1,24 +1,31 @@
-"use strict";
+import { TextDecoder } from "node:util";
+import { COLOR_CUSTOMIZATION_SETTINGS } from "./constants";
+import type {
+  ConfigurationLike,
+  ExtensionSummary,
+  InstalledThemeEntry,
+  ThemeContribution,
+  ThemeContributionSummary,
+  ThemeDefinition,
+  ThemeDefinitionLoadResult,
+  ThemeDefinitionSummary,
+  ThemeProbe,
+  ThemeProbeOptions,
+  ThemeTextReader,
+  TokenColorRule,
+  VscodeExtensionLike,
+  VscodeThemeProbeApi
+} from "./types";
 
-const { TextDecoder } = require("node:util");
+export async function collectThemeProbe(
+  vscode: VscodeThemeProbeApi,
+  options: ThemeProbeOptions = {}
+): Promise<ThemeProbe> {
+  const workbenchConfig = vscode.workspace.getConfiguration("workbench");
+  const currentThemeName = workbenchConfig.get<string | undefined>("colorTheme");
+  const readThemeTextFile = options.readThemeTextFile || createVscodeThemeTextReader(vscode);
 
-const COLOR_CUSTOMIZATION_SETTINGS = [
-  { section: "workbench", key: "colorTheme" },
-  { section: "workbench", key: "iconTheme" },
-  { section: "workbench", key: "productIconTheme" },
-  { section: "workbench", key: "colorCustomizations" },
-  { section: "editor", key: "tokenColorCustomizations" },
-  { section: "editor", key: "semanticTokenColorCustomizations" }
-];
-
-async function collectThemeProbe(vscode, options = {}) {
-  const getConfig = (section) => vscode.workspace.getConfiguration(section);
-  const workbenchConfig = getConfig("workbench");
-  const currentThemeName = workbenchConfig.get("colorTheme");
-  const readThemeTextFile =
-    options.readThemeTextFile || createVscodeThemeTextReader(vscode);
-
-  const installedThemes = await collectInstalledThemes(vscode.extensions.all, {
+  const installedThemes = await collectInstalledThemes(vscode.extensions?.all || [], {
     includeThemeDefinitions: options.includeThemeDefinitions !== false,
     readThemeTextFile
   });
@@ -26,14 +33,14 @@ async function collectThemeProbe(vscode, options = {}) {
   return {
     generatedAt: new Date().toISOString(),
     host: {
-      appName: vscode.env && vscode.env.appName,
-      appHost: vscode.env && vscode.env.appHost,
-      uiKind: getUiKindName(vscode, vscode.env && vscode.env.uiKind),
+      appName: vscode.env?.appName,
+      appHost: vscode.env?.appHost,
+      uiKind: getUiKindName(vscode, vscode.env?.uiKind),
       vscodeVersion: vscode.version
     },
     currentTheme: {
       configuredName: currentThemeName,
-      activeKind: getThemeKindName(vscode, vscode.window && vscode.window.activeColorTheme && vscode.window.activeColorTheme.kind),
+      activeKind: getThemeKindName(vscode, vscode.window?.activeColorTheme?.kind),
       settings: collectRelevantSettings(vscode),
       matchedInstalledThemes: installedThemes.filter((entry) =>
         themeMatchesConfiguredName(entry.theme, currentThemeName)
@@ -43,16 +50,19 @@ async function collectThemeProbe(vscode, options = {}) {
   };
 }
 
-async function collectInstalledThemes(extensions, options = {}) {
+export async function collectInstalledThemes(
+  extensions: readonly VscodeExtensionLike[] | undefined,
+  options: ThemeProbeOptions = {}
+): Promise<InstalledThemeEntry[]> {
   const includeThemeDefinitions = options.includeThemeDefinitions !== false;
   const readThemeTextFile = options.readThemeTextFile;
-  const entries = [];
+  const entries: InstalledThemeEntry[] = [];
 
   for (const extension of extensions || []) {
     const themes = getContributedThemes(extension);
 
     for (const theme of themes) {
-      const entry = {
+      const entry: InstalledThemeEntry = {
         extension: summarizeExtension(extension),
         theme: summarizeThemeContribution(theme)
       };
@@ -72,7 +82,12 @@ async function collectInstalledThemes(extensions, options = {}) {
   });
 }
 
-async function loadThemeDefinition(extension, theme, readThemeTextFile, seen = new Set()) {
+export async function loadThemeDefinition(
+  extension: VscodeExtensionLike,
+  theme: ThemeContribution,
+  readThemeTextFile: ThemeTextReader,
+  seen = new Set<string>()
+): Promise<ThemeDefinitionLoadResult> {
   if (!theme || !theme.path) {
     return { status: "missing-path" };
   }
@@ -95,7 +110,7 @@ async function loadThemeDefinition(extension, theme, readThemeTextFile, seen = n
   try {
     const text = await readThemeTextFile(extension, filePath);
     const definition = parseJsonc(text);
-    const include = definition && definition.include
+    const include = definition.include
       ? await loadThemeDefinition(
           extension,
           { path: resolveRelativeThemePath(filePath, definition.include) },
@@ -103,7 +118,7 @@ async function loadThemeDefinition(extension, theme, readThemeTextFile, seen = n
           new Set([...seen, seenKey])
         )
       : undefined;
-    const includedDefinition = include && include.status === "loaded" ? include.resolvedDefinition : undefined;
+    const includedDefinition = include?.status === "loaded" ? include.resolvedDefinition : undefined;
     const resolvedDefinition = includedDefinition
       ? mergeThemeDefinitions(includedDefinition, definition)
       : definition;
@@ -121,13 +136,15 @@ async function loadThemeDefinition(extension, theme, readThemeTextFile, seen = n
     return {
       status: "read-or-parse-error",
       filePath,
-      error: error && error.message ? error.message : String(error)
+      error: getErrorMessage(error)
     };
   }
 }
 
-function collectRelevantSettings(vscode) {
-  const settings = {};
+export function collectRelevantSettings(
+  vscode: VscodeThemeProbeApi
+): Record<string, { effectiveValue: unknown; inspect: unknown }> {
+  const settings: Record<string, { effectiveValue: unknown; inspect: unknown }> = {};
 
   for (const setting of COLOR_CUSTOMIZATION_SETTINGS) {
     const config = vscode.workspace.getConfiguration(setting.section);
@@ -137,15 +154,19 @@ function collectRelevantSettings(vscode) {
   return settings;
 }
 
-function inspectSetting(config, key) {
+export function inspectSetting(config: ConfigurationLike, key: string): { effectiveValue: unknown; inspect: unknown } {
   return {
     effectiveValue: safeCall(() => config.get(key)),
     inspect: safeCall(() => config.inspect(key))
   };
 }
 
-function createVscodeThemeTextReader(vscode) {
+export function createVscodeThemeTextReader(vscode: VscodeThemeProbeApi): ThemeTextReader {
   return async (extension, themePath) => {
+    if (!vscode.Uri || !vscode.workspace.fs || !extension.extensionUri) {
+      throw new Error("VS Code file system APIs are unavailable.");
+    }
+
     const segments = normalizeThemePath(themePath);
     const uri = vscode.Uri.joinPath(extension.extensionUri, ...segments);
     const bytes = await vscode.workspace.fs.readFile(uri);
@@ -153,11 +174,11 @@ function createVscodeThemeTextReader(vscode) {
   };
 }
 
-function parseJsonc(text) {
-  return JSON.parse(stripTrailingCommas(stripJsonComments(text)));
+export function parseJsonc(text: string): ThemeDefinition {
+  return JSON.parse(stripTrailingCommas(stripJsonComments(text))) as ThemeDefinition;
 }
 
-function stripJsonComments(text) {
+export function stripJsonComments(text: string): string {
   let output = "";
   let inString = false;
   let escaped = false;
@@ -222,7 +243,7 @@ function stripJsonComments(text) {
   return output;
 }
 
-function stripTrailingCommas(text) {
+export function stripTrailingCommas(text: string): string {
   let output = "";
   let inString = false;
   let escaped = false;
@@ -264,12 +285,12 @@ function stripTrailingCommas(text) {
   return output;
 }
 
-function getContributedThemes(extension) {
-  const themes = extension && extension.packageJSON && extension.packageJSON.contributes && extension.packageJSON.contributes.themes;
+function getContributedThemes(extension: VscodeExtensionLike): ThemeContribution[] {
+  const themes = extension.packageJSON?.contributes?.themes;
   return Array.isArray(themes) ? themes : [];
 }
 
-function summarizeExtension(extension) {
+function summarizeExtension(extension: VscodeExtensionLike): ExtensionSummary {
   const packageJson = extension.packageJSON || {};
 
   return {
@@ -279,12 +300,12 @@ function summarizeExtension(extension) {
     publisher: packageJson.publisher,
     version: packageJson.version,
     isActive: extension.isActive,
-    extensionUri: extension.extensionUri && extension.extensionUri.toString(),
+    extensionUri: extension.extensionUri?.toString(),
     extensionKind: extension.extensionKind
   };
 }
 
-function summarizeThemeContribution(theme) {
+function summarizeThemeContribution(theme: ThemeContribution): ThemeContributionSummary {
   return {
     id: theme.id,
     label: theme.label,
@@ -293,7 +314,7 @@ function summarizeThemeContribution(theme) {
   };
 }
 
-function summarizeThemeDefinition(definition) {
+function summarizeThemeDefinition(definition: ThemeDefinition | undefined): ThemeDefinitionSummary | undefined {
   if (!definition || typeof definition !== "object") {
     return undefined;
   }
@@ -304,12 +325,14 @@ function summarizeThemeDefinition(definition) {
     semanticHighlighting: definition.semanticHighlighting,
     rawKeys: Object.keys(definition),
     colorCount: countObjectKeys(definition.colors),
-    tokenColorCount: Array.isArray(definition.tokenColors) ? definition.tokenColors.length : countObjectKeys(definition.tokenColors),
+    tokenColorCount: Array.isArray(definition.tokenColors)
+      ? definition.tokenColors.length
+      : countObjectKeys(definition.tokenColors),
     semanticTokenColorCount: countObjectKeys(definition.semanticTokenColors)
   };
 }
 
-function mergeThemeDefinitions(base, override) {
+function mergeThemeDefinitions(base: ThemeDefinition, override: ThemeDefinition): ThemeDefinition {
   return {
     ...base,
     ...override,
@@ -318,8 +341,8 @@ function mergeThemeDefinitions(base, override) {
       ...(override.colors || {})
     },
     tokenColors: [
-      ...toArray(base.tokenColors),
-      ...toArray(override.tokenColors)
+      ...toTokenColorArray(base.tokenColors),
+      ...toTokenColorArray(override.tokenColors)
     ],
     semanticTokenColors: {
       ...(isPlainObject(base.semanticTokenColors) ? base.semanticTokenColors : {}),
@@ -328,7 +351,7 @@ function mergeThemeDefinitions(base, override) {
   };
 }
 
-function resolveRelativeThemePath(themePath, includePath) {
+export function resolveRelativeThemePath(themePath: string, includePath: string): string {
   if (!themePath || !includePath) {
     return includePath;
   }
@@ -339,7 +362,7 @@ function resolveRelativeThemePath(themePath, includePath) {
 
   const parent = normalizeThemePath(themePath).slice(0, -1);
   const includeSegments = normalizeThemePath(includePath);
-  const resolved = [];
+  const resolved: string[] = [];
 
   for (const segment of [...parent, ...includeSegments]) {
     if (segment === "..") {
@@ -352,80 +375,72 @@ function resolveRelativeThemePath(themePath, includePath) {
   return resolved.join("/");
 }
 
-function normalizeThemePath(themePath) {
+function normalizeThemePath(themePath: string): string[] {
   return String(themePath || "")
     .split(/[\\/]+/)
     .filter((segment) => segment && segment !== ".");
 }
 
-function isJsonThemePath(themePath) {
+function isJsonThemePath(themePath: string): boolean {
   return /\.jsonc?$/i.test(themePath || "");
 }
 
-function themeMatchesConfiguredName(theme, configuredName) {
+export function themeMatchesConfiguredName(
+  theme: Pick<ThemeContributionSummary, "id" | "label">,
+  configuredName: string | undefined
+): boolean {
   if (!configuredName) {
     return false;
   }
 
   return [theme.id, theme.label]
     .filter(Boolean)
-    .some((candidate) => candidate.toLowerCase() === String(configuredName).toLowerCase());
+    .some((candidate) => candidate?.toLowerCase() === configuredName.toLowerCase());
 }
 
-function getThemeKindName(vscode, kind) {
+function getThemeKindName(vscode: VscodeThemeProbeApi, kind: unknown): unknown {
   if (kind === undefined || !vscode.ColorThemeKind) {
     return kind;
   }
 
-  const entries = Object.entries(vscode.ColorThemeKind);
-  const match = entries.find(([, value]) => value === kind);
+  const match = Object.entries(vscode.ColorThemeKind).find(([, value]) => value === kind);
   return match ? match[0] : kind;
 }
 
-function getUiKindName(vscode, kind) {
+function getUiKindName(vscode: VscodeThemeProbeApi, kind: unknown): unknown {
   if (kind === undefined || !vscode.UIKind) {
     return kind;
   }
 
-  const entries = Object.entries(vscode.UIKind);
-  const match = entries.find(([, value]) => value === kind);
+  const match = Object.entries(vscode.UIKind).find(([, value]) => value === kind);
   return match ? match[0] : kind;
 }
 
-function countObjectKeys(value) {
+function countObjectKeys(value: unknown): number {
   return isPlainObject(value) ? Object.keys(value).length : 0;
 }
 
-function toArray(value) {
+function toTokenColorArray(value: ThemeDefinition["tokenColors"]): TokenColorRule[] {
   if (Array.isArray(value)) {
     return value;
   }
-  return value === undefined ? [] : [value];
+  return value === undefined ? [] : [value as TokenColorRule];
 }
 
-function isPlainObject(value) {
+function isPlainObject(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
-function safeCall(fn) {
+function safeCall(fn: () => unknown): unknown {
   try {
     return fn();
   } catch (error) {
     return {
-      error: error && error.message ? error.message : String(error)
+      error: getErrorMessage(error)
     };
   }
 }
 
-module.exports = {
-  collectThemeProbe,
-  collectInstalledThemes,
-  createVscodeThemeTextReader,
-  inspectSetting,
-  loadThemeDefinition,
-  parseJsonc,
-  resolveRelativeThemePath,
-  stripJsonComments,
-  stripTrailingCommas,
-  themeMatchesConfiguredName
-};
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
