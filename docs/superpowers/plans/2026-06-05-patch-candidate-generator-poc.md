@@ -58,5 +58,5 @@
 - [x] `git diff --check`를 실행한다.
 - [x] `npm test`를 최종 실행한다.
 - [x] 변경 사항을 커밋한다.
-- [ ] branch를 push한다.
+- [x] branch를 push한다.
 - [x] 구현 subagent, spec review subagent, code quality review subagent를 모두 닫는다.
