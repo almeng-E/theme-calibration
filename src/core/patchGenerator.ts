@@ -1,20 +1,22 @@
-import { SETTING_IDS } from "./constants";
+import { SETTING_IDS } from "../constants";
 import type {
   PatchCandidate,
-  PatchCandidateSettingChange,
+  CandidateSettingChange,
   PatchRecipe,
-  PlainSetting,
-  SettingId,
-  ThemeRisk,
-  ThemeSignalName,
-  ThemeSignalReport
-} from "./types";
+  SettingDictionary,
+  TargetSettingId
+} from "./types/patch.types";
+import type {
+  ColorSignalRole,
+  ThemeAnalysisReport,
+  VisibilityRisk
+} from "./types/signal.types";
 
-interface CandidateMapping extends PatchCandidateSettingChange {
+interface CandidateMapping extends CandidateSettingChange {
   confidence: number;
 }
 
-const LOW_CONTRAST_MAPPINGS: Partial<Record<ThemeSignalName, CandidateMapping>> = {
+const LOW_CONTRAST_MAPPINGS: Partial<Record<ColorSignalRole, CandidateMapping>> = {
   comment: {
     settingId: SETTING_IDS.editorTokenColorCustomizations,
     settingKey: "comments",
@@ -54,7 +56,7 @@ const LOW_CONTRAST_MAPPINGS: Partial<Record<ThemeSignalName, CandidateMapping>> 
 };
 
 const SIMILAR_SIGNAL_MAPPINGS: Array<{
-  pair: [ThemeSignalName, ThemeSignalName];
+  pair: [ColorSignalRole, ColorSignalRole];
   mapping: CandidateMapping;
 }> = [
   {
@@ -77,7 +79,7 @@ const SIMILAR_SIGNAL_MAPPINGS: Array<{
   }
 ];
 
-export function createPatchCandidates(report: Pick<ThemeSignalReport, "signals" | "risks">): PatchCandidate[] {
+export function createPatchCandidates(report: Pick<ThemeAnalysisReport, "signals" | "risks">): PatchCandidate[] {
   const candidates: PatchCandidate[] = [];
 
   for (const risk of report.risks) {
@@ -109,8 +111,8 @@ export function createPatchRecipeFromCandidates(
 }
 
 function createPatchCandidate(
-  report: Pick<ThemeSignalReport, "signals" | "risks">,
-  risk: ThemeRisk
+  report: Pick<ThemeAnalysisReport, "signals" | "risks">,
+  risk: VisibilityRisk
 ): PatchCandidate | undefined {
   if (risk.type === "lowContrast" && risk.signal) {
     const mapping = LOW_CONTRAST_MAPPINGS[risk.signal];
@@ -134,9 +136,9 @@ function createPatchCandidate(
 }
 
 function buildCandidate(
-  report: Pick<ThemeSignalReport, "signals" | "risks">,
-  risk: ThemeRisk,
-  signals: ThemeSignalName[],
+  report: Pick<ThemeAnalysisReport, "signals" | "risks">,
+  risk: VisibilityRisk,
+  signals: ColorSignalRole[],
   mapping: CandidateMapping
 ): PatchCandidate {
   return {
@@ -158,17 +160,17 @@ function buildCandidate(
   };
 }
 
-function findSimilarSignalMapping(signals: ThemeSignalName[]): CandidateMapping | undefined {
+function findSimilarSignalMapping(signals: ColorSignalRole[]): CandidateMapping | undefined {
   return SIMILAR_SIGNAL_MAPPINGS.find(({ pair }) => hasSameSignals(signals, pair))?.mapping;
 }
 
-function hasSameSignals(left: readonly ThemeSignalName[], right: readonly ThemeSignalName[]): boolean {
+function hasSameSignals(left: readonly ColorSignalRole[], right: readonly ColorSignalRole[]): boolean {
   return left.length === right.length && right.every((signal) => left.includes(signal));
 }
 
 function getCurrentSignals(
-  report: Pick<ThemeSignalReport, "signals" | "risks">,
-  signals: ThemeSignalName[]
+  report: Pick<ThemeAnalysisReport, "signals" | "risks">,
+  signals: ColorSignalRole[]
 ): PatchCandidate["currentSignals"] {
   const currentSignals: PatchCandidate["currentSignals"] = {};
 
@@ -182,7 +184,7 @@ function getCurrentSignals(
   return currentSignals;
 }
 
-function createFallbackReason(risk: ThemeRisk, signals: ThemeSignalName[]): string {
+function createFallbackReason(risk: VisibilityRisk, signals: ColorSignalRole[]): string {
   if (risk.type === "lowContrast") {
     return `${signals[0]} has low contrast against the editor background.`;
   }
@@ -190,15 +192,15 @@ function createFallbackReason(risk: ThemeRisk, signals: ThemeSignalName[]): stri
   return `${signals.join(" and ")} are visually close.`;
 }
 
-function createEmptyRecipeSettings(): Record<SettingId, PlainSetting> {
+function createEmptyRecipeSettings(): Record<TargetSettingId, SettingDictionary> {
   return {
-    [SETTING_IDS.workbenchColorCustomizations]: {},
-    [SETTING_IDS.editorTokenColorCustomizations]: {},
-    [SETTING_IDS.editorSemanticTokenColorCustomizations]: {}
+    "workbench.colorCustomizations": {},
+    "editor.tokenColorCustomizations": {},
+    "editor.semanticTokenColorCustomizations": {}
   };
 }
 
-function getSettingTarget(setting: PlainSetting, themeName: string | undefined): PlainSetting {
+function getSettingTarget(setting: SettingDictionary, themeName: string | undefined): SettingDictionary {
   if (!themeName) {
     return setting;
   }
@@ -208,7 +210,7 @@ function getSettingTarget(setting: PlainSetting, themeName: string | undefined):
     setting[themeKey] = {};
   }
 
-  return setting[themeKey] as PlainSetting;
+  return setting[themeKey] as SettingDictionary;
 }
 
 function slugify(value: string): string {
@@ -219,6 +221,6 @@ function slugify(value: string): string {
     .replace(/^-+|-+$/g, "") || "global";
 }
 
-function isPlainObject(value: unknown): value is PlainSetting {
+function isPlainObject(value: unknown): value is SettingDictionary {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }

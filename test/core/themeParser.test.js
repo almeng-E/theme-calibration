@@ -4,11 +4,13 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const {
   collectInstalledThemes,
-  collectThemeProbe,
   parseJsonc,
   resolveRelativeThemePath,
-  themeMatchesConfiguredName
-} = require("../out/themeProbe");
+  isMatchingThemeName
+} = require("../../out/core/themeParser");
+const {
+  collectThemeSnapshot
+} = require("../../out/adapter/vscode.adapter");
 
 test("parseJsonc removes comments and trailing commas while preserving strings", () => {
   const parsed = parseJsonc(`{
@@ -85,9 +87,9 @@ test("collectInstalledThemes reads contributed theme definitions and includes", 
   assert.equal(themes[0].themeDefinition.resolvedDefinition.tokenColors.length, 1);
 });
 
-test("collectThemeProbe returns current settings and matches active configured theme", async () => {
+test("collectThemeSnapshot returns current settings and matches active configured theme", async () => {
   const fakeVscode = createFakeVscode();
-  const probe = await collectThemeProbe(fakeVscode, {
+  const probe = await collectThemeSnapshot(fakeVscode, {
     readThemeTextFile: async () => `{
       "name": "Sample Dark",
       "colors": { "editor.background": "#000000" }
@@ -103,10 +105,10 @@ test("collectThemeProbe returns current settings and matches active configured t
   );
 });
 
-test("themeMatchesConfiguredName matches id or label case-insensitively", () => {
-  assert.equal(themeMatchesConfiguredName({ id: "sample-dark" }, "Sample-Dark"), true);
-  assert.equal(themeMatchesConfiguredName({ label: "Sample Dark" }, "sample dark"), true);
-  assert.equal(themeMatchesConfiguredName({ label: "Other" }, "sample dark"), false);
+test("isMatchingThemeName matches id or label case-insensitively", () => {
+  assert.equal(isMatchingThemeName({ id: "sample-dark" }, "Sample-Dark"), true);
+  assert.equal(isMatchingThemeName({ label: "Sample Dark" }, "sample dark"), true);
+  assert.equal(isMatchingThemeName({ label: "Other" }, "sample dark"), false);
 });
 
 function createFakeVscode() {

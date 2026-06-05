@@ -1,16 +1,20 @@
 import type {
-  InstalledThemeEntry,
-  ThemeDefinition,
-  ThemeProbe,
-  ThemeRisk,
-  ThemeSignal,
-  ThemeSignalName,
-  ThemeSignalReport,
-  ThemeSignals,
+  InstalledTheme,
+  RawThemeData,
+  ThemeEnvironment,
   TokenColorRule
-} from "./types";
+} from "./types/theme.types";
+import type {
+  ColorSignal,
+  ColorSignalMap,
+  ColorSignalRole,
+  SignalContrastMap,
+  ThemeAnalysisReport,
+  VisibilityRisk
+} from "./types/signal.types";
+import { calculateContrastRatio, calculateColorDistance } from "./colorUtils";
 
-const TEXT_SIGNAL_NAMES: ThemeSignalName[] = [
+const TEXT_SIGNAL_NAMES: ColorSignalRole[] = [
   "foreground",
   "comment",
   "string",
@@ -19,7 +23,7 @@ const TEXT_SIGNAL_NAMES: ThemeSignalName[] = [
   "warning"
 ];
 
-const SIMILAR_SIGNAL_PAIRS: Array<[ThemeSignalName, ThemeSignalName]> = [
+const SIMILAR_SIGNAL_PAIRS: Array<[ColorSignalRole, ColorSignalRole]> = [
   ["comment", "string"],
   ["string", "diffDeleted"],
   ["error", "diffDeleted"],
@@ -27,14 +31,7 @@ const SIMILAR_SIGNAL_PAIRS: Array<[ThemeSignalName, ThemeSignalName]> = [
   ["diffAdded", "string"]
 ];
 
-export interface ParsedColor {
-  r: number;
-  g: number;
-  b: number;
-  a: number;
-}
-
-export function createThemeSignalReport(probe: Partial<ThemeProbe> | undefined): ThemeSignalReport {
+export function createThemeSignalReport(probe: Partial<ThemeEnvironment> | undefined): ThemeAnalysisReport {
   const configuredName = probe?.currentTheme?.configuredName;
   const activeKind = probe?.currentTheme?.activeKind;
   const matchedTheme = findLoadedCurrentTheme(probe);
@@ -79,10 +76,10 @@ export function createThemeSignalReport(probe: Partial<ThemeProbe> | undefined):
   };
 }
 
-function extractSignals(definition: ThemeDefinition): ThemeSignals {
+function extractSignals(definition: RawThemeData): ColorSignalMap {
   const colors = definition.colors || {};
   const tokenColors = Array.isArray(definition.tokenColors) ? definition.tokenColors : [];
-  const signals: ThemeSignals = {};
+  const signals: ColorSignalMap = {};
 
   addSignal(signals, "background", firstColor(colors, ["editor.background"]));
   addSignal(signals, "foreground", firstColor(colors, ["editor.foreground", "foreground"]));
@@ -121,15 +118,15 @@ function extractSignals(definition: ThemeDefinition): ThemeSignals {
   return signals;
 }
 
-function calculateSignalContrasts(signals: ThemeSignals): ThemeSignalReport["contrast"] {
+function calculateSignalContrasts(signals: ColorSignalMap): SignalContrastMap {
   const background = signals.background?.value;
-  const contrast: ThemeSignalReport["contrast"] = {};
+  const contrast: SignalContrastMap = {};
 
   if (!background) {
     return contrast;
   }
 
-  for (const signalName of Object.keys(signals) as ThemeSignalName[]) {
+  for (const signalName of Object.keys(signals) as ColorSignalRole[]) {
     if (signalName === "background") {
       continue;
     }
@@ -145,11 +142,11 @@ function calculateSignalContrasts(signals: ThemeSignals): ThemeSignalReport["con
   return contrast;
 }
 
-function createRisks(signals: ThemeSignals, contrast: ThemeSignalReport["contrast"]): ThemeRisk[] {
-  const risks: ThemeRisk[] = [];
+function createRisks(signals: ColorSignalMap, contrast: SignalContrastMap): VisibilityRisk[] {
+  const risks: VisibilityRisk[] = [];
 
   for (const signalName of TEXT_SIGNAL_NAMES) {
-    const item = contrast[signalName as Exclude<ThemeSignalName, "background">];
+    const item = contrast[signalName as Exclude<ColorSignalRole, "background">];
     if (item && item.ratio < 4.5) {
       risks.push({
         type: "lowContrast",
@@ -193,78 +190,7 @@ function createRisks(signals: ThemeSignals, contrast: ThemeSignalReport["contras
   return risks;
 }
 
-export function calculateContrastRatio(foregroundHex: string, backgroundHex: string): number {
-  const foreground = resolveColorOverBackground(parseHexColor(foregroundHex), parseHexColor(backgroundHex));
-  const background = parseHexColor(backgroundHex);
-  const lighter = Math.max(relativeLuminance(foreground), relativeLuminance(background));
-  const darker = Math.min(relativeLuminance(foreground), relativeLuminance(background));
-
-  return roundToTwo((lighter + 0.05) / (darker + 0.05));
-}
-
-export function calculateColorDistance(leftHex: string, rightHex: string): number {
-  const left = parseHexColor(leftHex);
-  const right = parseHexColor(rightHex);
-  const distance = Math.sqrt(
-    Math.pow(left.r - right.r, 2) +
-      Math.pow(left.g - right.g, 2) +
-      Math.pow(left.b - right.b, 2)
-  );
-
-  return roundToTwo(distance);
-}
-
-export function parseHexColor(hex: string): ParsedColor {
-  const normalized = hex.trim();
-  const match = normalized.match(/^#([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i);
-  if (!match) {
-    throw new Error(`Unsupported hex color: ${hex}`);
-  }
-
-  const value = match[1] || "";
-
-  if (value.length === 3) {
-    return {
-      r: parseInt(value[0] + value[0], 16),
-      g: parseInt(value[1] + value[1], 16),
-      b: parseInt(value[2] + value[2], 16),
-      a: 1
-    };
-  }
-
-  return {
-    r: parseInt(value.slice(0, 2), 16),
-    g: parseInt(value.slice(2, 4), 16),
-    b: parseInt(value.slice(4, 6), 16),
-    a: value.length === 8 ? roundToTwo(parseInt(value.slice(6, 8), 16) / 255) : 1
-  };
-}
-
-function relativeLuminance(color: ParsedColor): number {
-  const channels = [color.r, color.g, color.b].map((channel) => {
-    const normalized = channel / 255;
-    return normalized <= 0.03928
-      ? normalized / 12.92
-      : Math.pow((normalized + 0.055) / 1.055, 2.4);
-  });
-
-  return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2];
-}
-
-function resolveColorOverBackground(foreground: ParsedColor, background: ParsedColor): ParsedColor {
-  if (foreground.a >= 1) {
-    return foreground;
-  }
-
-  return {
-    r: Math.round(foreground.r * foreground.a + background.r * (1 - foreground.a)),
-    g: Math.round(foreground.g * foreground.a + background.g * (1 - foreground.a)),
-    b: Math.round(foreground.b * foreground.a + background.b * (1 - foreground.a)),
-    a: 1
-  };
-}
-
-function firstColor(colors: Record<string, string>, keys: string[]): ThemeSignal | undefined {
+function firstColor(colors: Record<string, string>, keys: string[]): ColorSignal | undefined {
   for (const key of keys) {
     if (colors[key]) {
       return {
@@ -279,9 +205,9 @@ function firstColor(colors: Record<string, string>, keys: string[]): ThemeSignal
 
 function findTokenColor(
   tokenColors: TokenColorRule[],
-  signalName: ThemeSignalName,
+  signalName: ColorSignalRole,
   scopeMatcher: (scope: string) => boolean
-): ThemeSignal | undefined {
+): ColorSignal | undefined {
   for (const rule of tokenColors) {
     const foreground = rule.settings?.foreground;
     if (!foreground) {
@@ -300,7 +226,7 @@ function findTokenColor(
   return undefined;
 }
 
-function findLoadedCurrentTheme(probe: Partial<ThemeProbe> | undefined): InstalledThemeEntry | undefined {
+function findLoadedCurrentTheme(probe: Partial<ThemeEnvironment> | undefined): InstalledTheme | undefined {
   const matches = probe?.currentTheme?.matchedInstalledThemes;
   if (!Array.isArray(matches)) {
     return undefined;
@@ -311,7 +237,7 @@ function findLoadedCurrentTheme(probe: Partial<ThemeProbe> | undefined): Install
   );
 }
 
-function addSignal(signals: ThemeSignals, name: ThemeSignalName, signal: ThemeSignal | undefined): void {
+function addSignal(signals: ColorSignalMap, name: ColorSignalRole, signal: ColorSignal | undefined): void {
   if (signal?.value) {
     signals[name] = signal;
   }
@@ -330,8 +256,4 @@ function normalizeScopes(scope: string | string[] | undefined): string[] {
     .split(",")
     .map((item) => item.trim())
     .filter(Boolean);
-}
-
-function roundToTwo(value: number): number {
-  return Math.round(value * 100) / 100;
 }

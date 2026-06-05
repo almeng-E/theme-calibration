@@ -1,18 +1,20 @@
 import * as vscode from "vscode";
 import { COMMAND_IDS, OUTPUT_CHANNEL_NAME, ROLLBACK_STATE_KEY } from "./constants";
-import { createPatchCandidates, createPatchRecipeFromCandidates } from "./patchCandidate";
-import { createPreviewModel, renderPreviewHtml } from "./previewWebview";
+import { createPatchCandidates, createPatchRecipeFromCandidates } from "./core/patchGenerator";
+import { createPreviewModel, renderPreviewHtml } from "./core/previewRenderer";
 import {
   POC_PATCH_RECIPE,
-  applySettingsUpdates,
-  createPatchPlan,
-  createRollbackPlan,
-  createThemeScopedPatchRecipe,
-  readPatchableSettings
-} from "./themePatch";
-import { collectThemeProbe } from "./themeProbe";
-import { createThemeSignalReport } from "./themeReport";
-import type { PatchCandidate, RollbackSnapshot } from "./types";
+  buildPatchPlan,
+  buildRollbackPlan,
+  wrapRecipeForTheme
+} from "./core/patchEngine";
+import {
+  collectThemeSnapshot,
+  readCurrentPatchableSettings,
+  writeSettingsToVscode
+} from "./adapter/vscode.adapter";
+import { createThemeSignalReport } from "./core/themeAnalyzer";
+import type { PatchCandidate, RollbackSnapshot } from "./core/types/patch.types";
 
 export function activate(context: vscode.ExtensionContext): void {
   const output = vscode.window.createOutputChannel(OUTPUT_CHANNEL_NAME);
@@ -22,7 +24,7 @@ export function activate(context: vscode.ExtensionContext): void {
     output.appendLine(`[${new Date().toISOString()}] Theme probe started.`);
 
     try {
-      const probe = await collectThemeProbe(vscode, {
+      const probe = await collectThemeSnapshot(vscode, {
         includeThemeDefinitions: true
       });
       const serialized = JSON.stringify(probe, null, 2);
@@ -46,7 +48,7 @@ export function activate(context: vscode.ExtensionContext): void {
     output.appendLine(`[${new Date().toISOString()}] Theme signal report started.`);
 
     try {
-      const probe = await collectThemeProbe(vscode, {
+      const probe = await collectThemeSnapshot(vscode, {
         includeThemeDefinitions: true
       });
       const report = createThemeSignalReport(probe);
@@ -71,7 +73,7 @@ export function activate(context: vscode.ExtensionContext): void {
     output.appendLine(`[${new Date().toISOString()}] Patch candidate generation started.`);
 
     try {
-      const probe = await collectThemeProbe(vscode, {
+      const probe = await collectThemeSnapshot(vscode, {
         includeThemeDefinitions: true
       });
       const report = createThemeSignalReport(probe);
@@ -101,7 +103,7 @@ export function activate(context: vscode.ExtensionContext): void {
     output.appendLine(`[${new Date().toISOString()}] Before/after preview started.`);
 
     try {
-      const probe = await collectThemeProbe(vscode, {
+      const probe = await collectThemeSnapshot(vscode, {
         includeThemeDefinitions: true
       });
       const report = createThemeSignalReport(probe);
@@ -132,7 +134,7 @@ export function activate(context: vscode.ExtensionContext): void {
     output.appendLine(`[${new Date().toISOString()}] Candidate preview started.`);
 
     try {
-      const probe = await collectThemeProbe(vscode, {
+      const probe = await collectThemeSnapshot(vscode, {
         includeThemeDefinitions: true
       });
       const report = createThemeSignalReport(probe);
@@ -197,12 +199,14 @@ export function activate(context: vscode.ExtensionContext): void {
     try {
       const target = vscode.ConfigurationTarget.Global;
       const currentThemeName = vscode.workspace.getConfiguration("workbench").get<string | undefined>("colorTheme");
-      const patchRecipe = createThemeScopedPatchRecipe(currentThemeName, POC_PATCH_RECIPE);
-      const existingSettings = readPatchableSettings(vscode, target);
-      const patchPlan = createPatchPlan(existingSettings, patchRecipe);
+      const patchRecipe = wrapRecipeForTheme(currentThemeName, POC_PATCH_RECIPE);
+      const existingSettings = readCurrentPatchableSettings(vscode, target);
+      const patchPlan = buildPatchPlan(existingSettings, patchRecipe);
+
+      output.appendLine("Applying settings updates...");
+      await writeSettingsToVscode(vscode, patchPlan.settingsUpdates, target);
 
       await context.globalState.update(ROLLBACK_STATE_KEY, patchPlan.rollbackSnapshot);
-      await applySettingsUpdates(vscode, patchPlan.settingsUpdates, target);
 
       output.appendLine(JSON.stringify({
         appliedRecipe: patchPlan.recipeId,
@@ -238,9 +242,10 @@ export function activate(context: vscode.ExtensionContext): void {
         return;
       }
 
-      const rollbackPlan = createRollbackPlan(rollbackSnapshot);
+      output.appendLine("Restoring original settings...");
+      const rollbackPlan = buildRollbackPlan(rollbackSnapshot);
 
-      await applySettingsUpdates(vscode, rollbackPlan.settingsUpdates, vscode.ConfigurationTarget.Global);
+      await writeSettingsToVscode(vscode, rollbackPlan.settingsUpdates, vscode.ConfigurationTarget.Global);
       await context.globalState.update(ROLLBACK_STATE_KEY, undefined);
 
       output.appendLine(JSON.stringify({

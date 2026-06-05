@@ -1,0 +1,63 @@
+// ============================================================
+// 7. 패치(Patch) & 프리뷰(Preview)
+// ============================================================
+
+import type { ColorSignalRole } from "./signal.types";
+
+export type SettingDictionary = Record<string, unknown>;
+
+export type TargetSettingId =
+  | "workbench.colorCustomizations"
+  | "editor.tokenColorCustomizations"
+  | "editor.semanticTokenColorCustomizations";
+
+export interface PatchRecipe {
+  id: string;
+  description: string;
+  settings: Record<TargetSettingId, SettingDictionary>;
+}
+
+export type PatchScope = "global" | "theme";
+
+export interface CandidateSettingChange {
+  settingId: TargetSettingId;
+  settingKey: string;
+  suggestedColor: string;
+}
+
+export interface PatchCandidate extends CandidateSettingChange {
+  id: string;
+  riskType: string;
+  signals: ColorSignalRole[];
+  currentSignals: Partial<Record<ColorSignalRole, string>>;
+  reason: string;
+  scope: PatchScope;
+  confidence: number;
+}
+
+export type ConfigurationSnapshot = Record<TargetSettingId, SettingDictionary>;
+
+export interface ConfigurationUpdate {
+  section: string;
+  key: string;
+  value: SettingDictionary;
+}
+
+export interface RollbackSnapshot {
+  createdAt: string;
+  recipeId: string;
+  settings: ConfigurationSnapshot;
+}
+
+export interface PatchExecutionPlan {
+  recipeId: string;
+  nextSettings: ConfigurationSnapshot;
+  rollbackSnapshot: RollbackSnapshot;
+  settingsUpdates: ConfigurationUpdate[];
+}
+
+export interface RollbackExecutionPlan {
+  recipeId: string;
+  createdAt: string;
+  settingsUpdates: ConfigurationUpdate[];
+}
