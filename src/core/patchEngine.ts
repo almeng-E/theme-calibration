@@ -8,6 +8,11 @@ import type {
   RollbackSnapshot,
   SettingDictionary
 } from "./types/patch.types";
+import { isPlainObject, clonePlainSetting, createEmptySettingsSnapshot } from "./objectUtils";
+
+// ============================================================
+// 1. Constants
+// ============================================================
 
 export const POC_PATCH_RECIPE: PatchRecipe = {
   id: "poc-hardcoded-contrast-v1",
@@ -26,32 +31,17 @@ export const POC_PATCH_RECIPE: PatchRecipe = {
   }
 };
 
-export function wrapRecipeForTheme(
-  themeName: string | undefined,
-  baseRecipe: PatchRecipe = POC_PATCH_RECIPE
-): PatchRecipe {
-  if (!themeName) {
-    return baseRecipe;
-  }
-
-  return {
-    ...baseRecipe,
-    settings: {
-      ...baseRecipe.settings,
-      "workbench.colorCustomizations": {
-        [`[${themeName}]`]: clonePlainSetting(baseRecipe.settings["workbench.colorCustomizations"])
-      }
-    }
-  };
-}
+// ============================================================
+// 2. High-level Builders
+// ============================================================
 
 export function buildPatchPlan(
   existingSettings: ConfigurationSnapshot,
   patchRecipe: PatchRecipe = POC_PATCH_RECIPE,
   now = new Date()
 ): PatchExecutionPlan {
-  const nextSettings = createEmptyPatchableSettings();
-  const rollbackSettings = createEmptyPatchableSettings();
+  const nextSettings = createEmptySettingsSnapshot();
+  const rollbackSettings = createEmptySettingsSnapshot();
 
   for (const settingId of SETTINGS_ORDER) {
     const existingValue = clonePlainSetting(existingSettings[settingId]);
@@ -85,6 +75,33 @@ export function buildRollbackPlan(rollbackSnapshot: RollbackSnapshot | undefined
   };
 }
 
+// ============================================================
+// 3. Recipe Helpers
+// ============================================================
+
+export function wrapRecipeForTheme(
+  themeName: string | undefined,
+  baseRecipe: PatchRecipe = POC_PATCH_RECIPE
+): PatchRecipe {
+  if (!themeName) {
+    return baseRecipe;
+  }
+
+  return {
+    ...baseRecipe,
+    settings: {
+      ...baseRecipe.settings,
+      "workbench.colorCustomizations": {
+        [`[${themeName}]`]: clonePlainSetting(baseRecipe.settings["workbench.colorCustomizations"])
+      }
+    }
+  };
+}
+
+// ============================================================
+// 4. Transformation Utilities
+// ============================================================
+
 export function toSettingWriteOps(settingsById: ConfigurationSnapshot): ConfigurationUpdate[] {
   return SETTINGS_ORDER.map((settingId) => {
     const [section, ...keyParts] = settingId.split(".");
@@ -110,24 +127,4 @@ function mergePlainObjects(base: SettingDictionary, override: SettingDictionary)
   }
 
   return baseClone;
-}
-
-function clonePlainSetting(value: unknown): SettingDictionary {
-  if (!isPlainObject(value)) {
-    return {};
-  }
-
-  return JSON.parse(JSON.stringify(value)) as SettingDictionary;
-}
-
-function createEmptyPatchableSettings(): ConfigurationSnapshot {
-  return {
-    "workbench.colorCustomizations": {},
-    "editor.tokenColorCustomizations": {},
-    "editor.semanticTokenColorCustomizations": {}
-  };
-}
-
-function isPlainObject(value: unknown): value is SettingDictionary {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
 }

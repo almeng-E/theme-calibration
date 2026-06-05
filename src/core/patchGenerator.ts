@@ -11,6 +11,11 @@ import type {
   ThemeAnalysisReport,
   VisibilityRisk
 } from "./types/signal.types";
+import { isPlainObject, createEmptySettingsSnapshot } from "./objectUtils";
+
+// ============================================================
+// 1. Constants & Mappings
+// ============================================================
 
 interface CandidateMapping extends CandidateSettingChange {
   confidence: number;
@@ -79,6 +84,10 @@ const SIMILAR_SIGNAL_MAPPINGS: Array<{
   }
 ];
 
+// ============================================================
+// 2. Main Generation APIs
+// ============================================================
+
 export function createPatchCandidates(report: Pick<ThemeAnalysisReport, "signals" | "risks">): PatchCandidate[] {
   const candidates: PatchCandidate[] = [];
 
@@ -96,7 +105,7 @@ export function createPatchRecipeFromCandidates(
   candidates: readonly PatchCandidate[],
   themeName?: string
 ): PatchRecipe {
-  const settings = createEmptyRecipeSettings();
+  const settings = createEmptySettingsSnapshot();
 
   for (const candidate of candidates) {
     const target = getSettingTarget(settings[candidate.settingId], themeName);
@@ -109,6 +118,10 @@ export function createPatchRecipeFromCandidates(
     settings
   };
 }
+
+// ============================================================
+// 3. Candidate Generation Helpers
+// ============================================================
 
 function createPatchCandidate(
   report: Pick<ThemeAnalysisReport, "signals" | "risks">,
@@ -192,13 +205,9 @@ function createFallbackReason(risk: VisibilityRisk, signals: ColorSignalRole[]):
   return `${signals.join(" and ")} are visually close.`;
 }
 
-function createEmptyRecipeSettings(): Record<TargetSettingId, SettingDictionary> {
-  return {
-    "workbench.colorCustomizations": {},
-    "editor.tokenColorCustomizations": {},
-    "editor.semanticTokenColorCustomizations": {}
-  };
-}
+// ============================================================
+// 4. Recipe Generation Helpers
+// ============================================================
 
 function getSettingTarget(setting: SettingDictionary, themeName: string | undefined): SettingDictionary {
   if (!themeName) {
@@ -219,8 +228,4 @@ function slugify(value: string): string {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "") || "global";
-}
-
-function isPlainObject(value: unknown): value is SettingDictionary {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
 }

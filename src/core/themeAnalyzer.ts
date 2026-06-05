@@ -14,6 +14,10 @@ import type {
 } from "./types/signal.types";
 import { calculateContrastRatio, calculateColorDistance } from "./colorUtils";
 
+// ============================================================
+// 1. Constants
+// ============================================================
+
 const TEXT_SIGNAL_NAMES: ColorSignalRole[] = [
   "foreground",
   "comment",
@@ -30,6 +34,10 @@ const SIMILAR_SIGNAL_PAIRS: Array<[ColorSignalRole, ColorSignalRole]> = [
   ["warning", "keyword"],
   ["diffAdded", "string"]
 ];
+
+// ============================================================
+// 2. Main Entry
+// ============================================================
 
 export function createThemeSignalReport(probe: Partial<ThemeEnvironment> | undefined): ThemeAnalysisReport {
   const configuredName = probe?.currentTheme?.configuredName;
@@ -74,6 +82,21 @@ export function createThemeSignalReport(probe: Partial<ThemeEnvironment> | undef
     contrast,
     risks
   };
+}
+
+// ============================================================
+// 3. Core Analysis Steps
+// ============================================================
+
+function findLoadedCurrentTheme(probe: Partial<ThemeEnvironment> | undefined): InstalledTheme | undefined {
+  const matches = probe?.currentTheme?.matchedInstalledThemes;
+  if (!Array.isArray(matches)) {
+    return undefined;
+  }
+
+  return matches.find((entry) =>
+    entry.themeDefinition?.status === "loaded" && Boolean(entry.themeDefinition.resolvedDefinition)
+  );
 }
 
 function extractSignals(definition: RawThemeData): ColorSignalMap {
@@ -190,6 +213,10 @@ function createRisks(signals: ColorSignalMap, contrast: SignalContrastMap): Visi
   return risks;
 }
 
+// ============================================================
+// 4. Extraction Helpers
+// ============================================================
+
 function firstColor(colors: Record<string, string>, keys: string[]): ColorSignal | undefined {
   for (const key of keys) {
     if (colors[key]) {
@@ -224,17 +251,6 @@ function findTokenColor(
   }
 
   return undefined;
-}
-
-function findLoadedCurrentTheme(probe: Partial<ThemeEnvironment> | undefined): InstalledTheme | undefined {
-  const matches = probe?.currentTheme?.matchedInstalledThemes;
-  if (!Array.isArray(matches)) {
-    return undefined;
-  }
-
-  return matches.find((entry) =>
-    entry.themeDefinition?.status === "loaded" && Boolean(entry.themeDefinition.resolvedDefinition)
-  );
 }
 
 function addSignal(signals: ColorSignalMap, name: ColorSignalRole, signal: ColorSignal | undefined): void {

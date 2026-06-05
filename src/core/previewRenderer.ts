@@ -12,6 +12,11 @@ import type {
   VisibilityRisk,
   ThemeAnalysisReport
 } from "./types/signal.types";
+import { isPlainObject } from "./objectUtils";
+
+// ============================================================
+// 1. Constants & Types
+// ============================================================
 
 const SIGNAL_DEFAULTS: ColorHexMap = {
   background: "#1e1e1e",
@@ -29,6 +34,10 @@ export interface PreviewModelOptions {
   candidates?: PatchCandidate[];
   selectedCandidateId?: string;
 }
+
+// ============================================================
+// 2. Model Generation
+// ============================================================
 
 export function createPreviewModel(
   report: Partial<ThemeAnalysisReport> | undefined,
@@ -56,6 +65,48 @@ export function createPreviewModel(
     selectedCandidateId: options.selectedCandidateId
   };
 }
+
+function normalizeReportSignals(signals: ThemeAnalysisReport["signals"] | undefined): ColorHexMap {
+  const normalized = { ...SIGNAL_DEFAULTS };
+
+  for (const name of Object.keys(SIGNAL_DEFAULTS) as Array<keyof ColorHexMap>) {
+    const signal = signals?.[name];
+    if (signal?.value) {
+      normalized[name] = signal.value;
+    }
+  }
+
+  return normalized;
+}
+
+function extractPatchSignals(patchRecipe: PatchRecipe): Partial<ColorHexMap> {
+  const workbenchCustomizations = findScopedSettings(patchRecipe.settings["workbench.colorCustomizations"]);
+  const tokenCustomizations = findScopedSettings(patchRecipe.settings["editor.tokenColorCustomizations"]);
+
+  return removeEmptyValues({
+    comment: asColorString(tokenCustomizations.comments),
+    string: asColorString(tokenCustomizations.strings),
+    keyword: asColorString(tokenCustomizations.keywords),
+    error: asColorString(workbenchCustomizations["editorError.foreground"]),
+    warning: asColorString(workbenchCustomizations["editorWarning.foreground"]),
+    diffAdded: asColorString(workbenchCustomizations["editorGutter.addedBackground"]),
+    diffDeleted: asColorString(workbenchCustomizations["editorGutter.deletedBackground"])
+  });
+}
+
+function findScopedSettings(setting: SettingDictionary | undefined): Record<string, unknown> {
+  if (!isPlainObject(setting)) {
+    return {};
+  }
+
+  const themeBucketKey = Object.keys(setting).find((key) => /^\[.+\]$/.test(key));
+  const themeBucket = themeBucketKey ? setting[themeBucketKey] : undefined;
+  return isPlainObject(themeBucket) ? themeBucket : setting;
+}
+
+// ============================================================
+// 3. HTML Rendering
+// ============================================================
 
 export function renderPreviewHtml(model: PreviewModel): string {
   const safeThemeName = escapeHtml(model.themeName);
@@ -244,34 +295,6 @@ function renderPane(pane: PreviewPane): string {
 </article>`;
 }
 
-function normalizeReportSignals(signals: ThemeAnalysisReport["signals"] | undefined): ColorHexMap {
-  const normalized = { ...SIGNAL_DEFAULTS };
-
-  for (const name of Object.keys(SIGNAL_DEFAULTS) as Array<keyof ColorHexMap>) {
-    const signal = signals?.[name];
-    if (signal?.value) {
-      normalized[name] = signal.value;
-    }
-  }
-
-  return normalized;
-}
-
-function extractPatchSignals(patchRecipe: PatchRecipe): Partial<ColorHexMap> {
-  const workbenchCustomizations = findScopedSettings(patchRecipe.settings["workbench.colorCustomizations"]);
-  const tokenCustomizations = findScopedSettings(patchRecipe.settings["editor.tokenColorCustomizations"]);
-
-  return removeEmptyValues({
-    comment: asColorString(tokenCustomizations.comments),
-    string: asColorString(tokenCustomizations.strings),
-    keyword: asColorString(tokenCustomizations.keywords),
-    error: asColorString(workbenchCustomizations["editorError.foreground"]),
-    warning: asColorString(workbenchCustomizations["editorWarning.foreground"]),
-    diffAdded: asColorString(workbenchCustomizations["editorGutter.addedBackground"]),
-    diffDeleted: asColorString(workbenchCustomizations["editorGutter.deletedBackground"])
-  });
-}
-
 function renderCandidateSection(model: PreviewModel): string {
   const items = (model.candidates || []).map((candidate) => {
     const isSelected = candidate.id === model.selectedCandidateId;
@@ -291,15 +314,9 @@ function renderCandidateSection(model: PreviewModel): string {
   </section>`;
 }
 
-function findScopedSettings(setting: SettingDictionary | undefined): Record<string, unknown> {
-  if (!isRecord(setting)) {
-    return {};
-  }
-
-  const themeBucketKey = Object.keys(setting).find((key) => /^\[.+\]$/.test(key));
-  const themeBucket = themeBucketKey ? setting[themeBucketKey] : undefined;
-  return isRecord(themeBucket) ? themeBucket : setting;
-}
+// ============================================================
+// 4. Formatting Utilities
+// ============================================================
 
 function removeEmptyValues(value: Partial<ColorHexMap>): Partial<ColorHexMap> {
   return Object.fromEntries(
@@ -342,8 +359,4 @@ function escapeHtml(value: unknown): string {
 
 function asColorString(value: unknown): string | undefined {
   return typeof value === "string" ? value : undefined;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
 }

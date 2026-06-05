@@ -13,6 +13,11 @@ import type {
   ThemeFileReader,
   VscodeExtensionInfo
 } from "../adapter/vscode.types";
+import { isPlainObject, normalizeThemePath, getErrorMessage } from "./objectUtils";
+
+// ============================================================
+// 1. Core API (Entry points)
+// ============================================================
 
 export async function collectInstalledThemes(
   extensions: readonly VscodeExtensionInfo[] | undefined,
@@ -45,6 +50,23 @@ export async function collectInstalledThemes(
     return leftLabel.localeCompare(rightLabel);
   });
 }
+
+export function isMatchingThemeName(
+  theme: Pick<ThemeRegistrationSummary, "id" | "label">,
+  configuredName: string | undefined
+): boolean {
+  if (!configuredName) {
+    return false;
+  }
+
+  return [theme.id, theme.label]
+    .filter(Boolean)
+    .some((candidate) => candidate?.toLowerCase() === configuredName.toLowerCase());
+}
+
+// ============================================================
+// 2. Theme File Loading & Resolution
+// ============================================================
 
 export async function loadThemeFile(
   extension: VscodeExtensionInfo,
@@ -104,6 +126,57 @@ export async function loadThemeFile(
     };
   }
 }
+
+export function resolveRelativeThemePath(themePath: string, includePath: string): string {
+  if (!themePath || !includePath) {
+    return includePath;
+  }
+
+  if (includePath.startsWith("/") || /^[A-Za-z]:[\\/]/.test(includePath)) {
+    return includePath;
+  }
+
+  const parent = normalizeThemePath(themePath).slice(0, -1);
+  const includeSegments = normalizeThemePath(includePath);
+  const resolved: string[] = [];
+
+  for (const segment of [...parent, ...includeSegments]) {
+    if (segment === "..") {
+      resolved.pop();
+    } else {
+      resolved.push(segment);
+    }
+  }
+
+  return resolved.join("/");
+}
+
+function mergeThemeFiles(base: RawThemeData, override: RawThemeData): RawThemeData {
+  return {
+    ...base,
+    ...override,
+    colors: {
+      ...(base.colors || {}),
+      ...(override.colors || {})
+    },
+    tokenColors: [
+      ...toTokenColorArray(base.tokenColors),
+      ...toTokenColorArray(override.tokenColors)
+    ],
+    semanticTokenColors: {
+      ...(isPlainObject(base.semanticTokenColors) ? base.semanticTokenColors : {}),
+      ...(isPlainObject(override.semanticTokenColors) ? override.semanticTokenColors : {})
+    }
+  };
+}
+
+function isJsonThemePath(themePath: string): boolean {
+  return /\.jsonc?$/i.test(themePath || "");
+}
+
+// ============================================================
+// 3. JSONC Parsing
+// ============================================================
 
 export function parseJsonc(text: string): RawThemeData {
   return JSON.parse(stripTrailingCommas(stripJsonComments(text))) as RawThemeData;
@@ -216,6 +289,10 @@ export function stripTrailingCommas(text: string): string {
   return output;
 }
 
+// ============================================================
+// 4. Data Extraction & Conversion Helpers
+// ============================================================
+
 function getContributedThemes(extension: VscodeExtensionInfo): ThemeRegistration[] {
   const themes = extension.packageJSON?.contributes?.themes;
   return Array.isArray(themes) ? themes : [];
@@ -263,72 +340,6 @@ function toThemeFileSummary(definition: RawThemeData | undefined): RawThemeDataS
   };
 }
 
-function mergeThemeFiles(base: RawThemeData, override: RawThemeData): RawThemeData {
-  return {
-    ...base,
-    ...override,
-    colors: {
-      ...(base.colors || {}),
-      ...(override.colors || {})
-    },
-    tokenColors: [
-      ...toTokenColorArray(base.tokenColors),
-      ...toTokenColorArray(override.tokenColors)
-    ],
-    semanticTokenColors: {
-      ...(isPlainObject(base.semanticTokenColors) ? base.semanticTokenColors : {}),
-      ...(isPlainObject(override.semanticTokenColors) ? override.semanticTokenColors : {})
-    }
-  };
-}
-
-export function resolveRelativeThemePath(themePath: string, includePath: string): string {
-  if (!themePath || !includePath) {
-    return includePath;
-  }
-
-  if (includePath.startsWith("/") || /^[A-Za-z]:[\\/]/.test(includePath)) {
-    return includePath;
-  }
-
-  const parent = normalizeThemePath(themePath).slice(0, -1);
-  const includeSegments = normalizeThemePath(includePath);
-  const resolved: string[] = [];
-
-  for (const segment of [...parent, ...includeSegments]) {
-    if (segment === "..") {
-      resolved.pop();
-    } else {
-      resolved.push(segment);
-    }
-  }
-
-  return resolved.join("/");
-}
-
-function normalizeThemePath(themePath: string): string[] {
-  return String(themePath || "")
-    .split(/[\\/]+/)
-    .filter((segment) => segment && segment !== ".");
-}
-
-function isJsonThemePath(themePath: string): boolean {
-  return /\.jsonc?$/i.test(themePath || "");
-}
-
-export function isMatchingThemeName(
-  theme: Pick<ThemeRegistrationSummary, "id" | "label">,
-  configuredName: string | undefined
-): boolean {
-  if (!configuredName) {
-    return false;
-  }
-
-  return [theme.id, theme.label]
-    .filter(Boolean)
-    .some((candidate) => candidate?.toLowerCase() === configuredName.toLowerCase());
-}
-
 function countObjectKeys(value: unknown): number {
   return isPlainObject(value) ? Object.keys(value).length : 0;
 }
@@ -338,12 +349,4 @@ function toTokenColorArray(value: RawThemeData["tokenColors"]): TokenColorRule[]
     return value;
   }
   return value === undefined ? [] : [value as TokenColorRule];
-}
-
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
-}
-
-function getErrorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
 }

@@ -1,8 +1,7 @@
 import { TextDecoder } from "node:util";
-import { COLOR_CUSTOMIZATION_SETTINGS } from "../constants";
+import { COLOR_CUSTOMIZATION_SETTINGS, SETTINGS_ORDER } from "../constants";
 import type { ThemeEnvironment } from "../core/types/theme.types";
 import type { ConfigurationSnapshot, ConfigurationUpdate, SettingDictionary } from "../core/types/patch.types";
-import { SETTINGS_ORDER } from "../constants";
 import type {
   ThemeCollectionOptions,
   ThemeFileReader,
@@ -11,6 +10,7 @@ import type {
   VscodeSettingsApis
 } from "./vscode.types";
 import { collectInstalledThemes, isMatchingThemeName } from "../core/themeParser";
+import { normalizeThemePath, clonePlainSetting } from "../core/objectUtils";
 
 export async function collectThemeSnapshot(
   vscode: VscodeReadApis,
@@ -30,12 +30,12 @@ export async function collectThemeSnapshot(
     host: {
       appName: vscode.env?.appName,
       appHost: vscode.env?.appHost,
-      uiKind: resolveUiKindLabel(vscode, vscode.env?.uiKind),
+      uiKind: resolveEnumLabel(vscode.UIKind, vscode.env?.uiKind),
       vscodeVersion: vscode.version
     },
     currentTheme: {
       configuredName: currentThemeName,
-      activeKind: resolveThemeKindLabel(vscode, vscode.window?.activeColorTheme?.kind),
+      activeKind: resolveEnumLabel(vscode.ColorThemeKind, vscode.window?.activeColorTheme?.kind),
       settings: readCurrentSettings(vscode),
       matchedInstalledThemes: installedThemes.filter((entry) =>
         isMatchingThemeName(entry.theme, currentThemeName)
@@ -78,28 +78,13 @@ export function createThemeFileReader(vscode: VscodeReadApis): ThemeFileReader {
   };
 }
 
-function resolveThemeKindLabel(vscode: VscodeReadApis, kind: unknown): unknown {
-  if (kind === undefined || !vscode.ColorThemeKind) {
+function resolveEnumLabel(enumMap: Record<string, unknown> | undefined, kind: unknown): unknown {
+  if (kind === undefined || !enumMap) {
     return kind;
   }
 
-  const match = Object.entries(vscode.ColorThemeKind).find(([, value]) => value === kind);
+  const match = Object.entries(enumMap).find(([, value]) => value === kind);
   return match ? match[0] : kind;
-}
-
-function resolveUiKindLabel(vscode: VscodeReadApis, kind: unknown): unknown {
-  if (kind === undefined || !vscode.UIKind) {
-    return kind;
-  }
-
-  const match = Object.entries(vscode.UIKind).find(([, value]) => value === kind);
-  return match ? match[0] : kind;
-}
-
-function normalizeThemePath(themePath: string): string[] {
-  return String(themePath || "")
-    .split(/[\\/]+/)
-    .filter((segment) => segment && segment !== ".");
 }
 
 function safeCall(fn: () => unknown): unknown {
@@ -164,10 +149,4 @@ function getInspectedValueForTarget(
   return clonePlainSetting(inspected.globalValue);
 }
 
-function clonePlainSetting(value: unknown): SettingDictionary {
-  if (value === null || typeof value !== "object" || Array.isArray(value)) {
-    return {};
-  }
 
-  return JSON.parse(JSON.stringify(value)) as SettingDictionary;
-}
