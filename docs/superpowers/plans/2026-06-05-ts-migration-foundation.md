@@ -66,5 +66,5 @@
 - [x] `git status --short`로 변경 범위를 확인한다.
 - [x] `npm test`를 최종 실행한다.
 - [x] 변경 사항을 커밋한다.
-- [ ] branch를 push한다.
+- [x] branch를 push한다.
 - [ ] 사용자에게 테스트 방법과 다음 PoC 브랜치 계획을 안내한다.
