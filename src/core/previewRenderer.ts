@@ -1,15 +1,19 @@
 import type {
+  PreviewModel,
+  PreviewPane
+} from "./types/preview.types";
+import type {
   PatchCandidate,
   PatchRecipe,
-  PlainSetting,
-  PreviewModel,
-  PreviewPane,
-  SignalValues,
-  ThemeRisk,
-  ThemeSignalReport
-} from "./types";
+  SettingDictionary
+} from "./types/patch.types";
+import type {
+  ColorHexMap,
+  VisibilityRisk,
+  ThemeAnalysisReport
+} from "./types/signal.types";
 
-const SIGNAL_DEFAULTS: SignalValues = {
+const SIGNAL_DEFAULTS: ColorHexMap = {
   background: "#1e1e1e",
   foreground: "#d4d4d4",
   comment: "#6a9955",
@@ -27,7 +31,7 @@ export interface PreviewModelOptions {
 }
 
 export function createPreviewModel(
-  report: Partial<ThemeSignalReport> | undefined,
+  report: Partial<ThemeAnalysisReport> | undefined,
   patchRecipe: PatchRecipe,
   options: PreviewModelOptions = {}
 ): PreviewModel {
@@ -240,10 +244,10 @@ function renderPane(pane: PreviewPane): string {
 </article>`;
 }
 
-function normalizeReportSignals(signals: ThemeSignalReport["signals"] | undefined): SignalValues {
+function normalizeReportSignals(signals: ThemeAnalysisReport["signals"] | undefined): ColorHexMap {
   const normalized = { ...SIGNAL_DEFAULTS };
 
-  for (const name of Object.keys(SIGNAL_DEFAULTS) as Array<keyof SignalValues>) {
+  for (const name of Object.keys(SIGNAL_DEFAULTS) as Array<keyof ColorHexMap>) {
     const signal = signals?.[name];
     if (signal?.value) {
       normalized[name] = signal.value;
@@ -253,7 +257,7 @@ function normalizeReportSignals(signals: ThemeSignalReport["signals"] | undefine
   return normalized;
 }
 
-function extractPatchSignals(patchRecipe: PatchRecipe): Partial<SignalValues> {
+function extractPatchSignals(patchRecipe: PatchRecipe): Partial<ColorHexMap> {
   const workbenchCustomizations = findScopedSettings(patchRecipe.settings["workbench.colorCustomizations"]);
   const tokenCustomizations = findScopedSettings(patchRecipe.settings["editor.tokenColorCustomizations"]);
 
@@ -287,7 +291,7 @@ function renderCandidateSection(model: PreviewModel): string {
   </section>`;
 }
 
-function findScopedSettings(setting: PlainSetting | undefined): Record<string, unknown> {
+function findScopedSettings(setting: SettingDictionary | undefined): Record<string, unknown> {
   if (!isRecord(setting)) {
     return {};
   }
@@ -297,10 +301,10 @@ function findScopedSettings(setting: PlainSetting | undefined): Record<string, u
   return isRecord(themeBucket) ? themeBucket : setting;
 }
 
-function removeEmptyValues(value: Partial<SignalValues>): Partial<SignalValues> {
+function removeEmptyValues(value: Partial<ColorHexMap>): Partial<ColorHexMap> {
   return Object.fromEntries(
     Object.entries(value).filter(([, item]) => Boolean(item))
-  ) as Partial<SignalValues>;
+  ) as Partial<ColorHexMap>;
 }
 
 function withAlphaFallback(hex: string, alpha: string): string {
@@ -315,7 +319,7 @@ function cssColor(value: string | undefined): string {
   return escapeHtml(value || "#ffffff");
 }
 
-function formatRisk(risk: ThemeRisk): string {
+function formatRisk(risk: VisibilityRisk): string {
   if (risk.message) {
     return risk.message;
   }

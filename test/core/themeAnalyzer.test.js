@@ -3,10 +3,12 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const {
+  createThemeSignalReport
+} = require("../../out/core/themeAnalyzer");
+const {
   calculateContrastRatio,
-  createThemeSignalReport,
   parseHexColor
-} = require("../out/themeReport");
+} = require("../../out/core/colorUtils");
 
 test("parseHexColor supports rgb, rrggbb, and rrggbbaa hex values", () => {
   assert.deepEqual(parseHexColor("#abc"), { r: 170, g: 187, b: 204, a: 1 });

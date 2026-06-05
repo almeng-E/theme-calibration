@@ -1,17 +1,13 @@
-import { ROLLBACK_STATE_KEY, SETTINGS_ORDER } from "./constants";
+import { SETTINGS_ORDER } from "../constants";
 import type {
-  PatchPlan,
+  ConfigurationSnapshot,
+  ConfigurationUpdate,
+  PatchExecutionPlan,
   PatchRecipe,
-  PatchableSettings,
-  PlainSetting,
-  RollbackPlan,
+  RollbackExecutionPlan,
   RollbackSnapshot,
-  SettingId,
-  SettingsUpdate,
-  VscodeSettingsApi
-} from "./types";
-
-export { ROLLBACK_STATE_KEY, SETTINGS_ORDER };
+  SettingDictionary
+} from "./types/patch.types";
 
 export const POC_PATCH_RECIPE: PatchRecipe = {
   id: "poc-hardcoded-contrast-v1",
@@ -30,7 +26,7 @@ export const POC_PATCH_RECIPE: PatchRecipe = {
   }
 };
 
-export function createThemeScopedPatchRecipe(
+export function wrapRecipeForTheme(
   themeName: string | undefined,
   baseRecipe: PatchRecipe = POC_PATCH_RECIPE
 ): PatchRecipe {
@@ -49,11 +45,11 @@ export function createThemeScopedPatchRecipe(
   };
 }
 
-export function createPatchPlan(
-  existingSettings: PatchableSettings,
+export function buildPatchPlan(
+  existingSettings: ConfigurationSnapshot,
   patchRecipe: PatchRecipe = POC_PATCH_RECIPE,
   now = new Date()
-): PatchPlan {
+): PatchExecutionPlan {
   const nextSettings = createEmptyPatchableSettings();
   const rollbackSettings = createEmptyPatchableSettings();
 
@@ -73,11 +69,11 @@ export function createPatchPlan(
       recipeId: patchRecipe.id,
       settings: rollbackSettings
     },
-    settingsUpdates: createSettingsUpdates(nextSettings)
+    settingsUpdates: toSettingWriteOps(nextSettings)
   };
 }
 
-export function createRollbackPlan(rollbackSnapshot: RollbackSnapshot | undefined): RollbackPlan {
+export function buildRollbackPlan(rollbackSnapshot: RollbackSnapshot | undefined): RollbackExecutionPlan {
   if (!rollbackSnapshot || !rollbackSnapshot.settings) {
     throw new Error("Rollback snapshot is missing.");
   }
@@ -85,11 +81,11 @@ export function createRollbackPlan(rollbackSnapshot: RollbackSnapshot | undefine
   return {
     recipeId: rollbackSnapshot.recipeId,
     createdAt: rollbackSnapshot.createdAt,
-    settingsUpdates: createSettingsUpdates(rollbackSnapshot.settings)
+    settingsUpdates: toSettingWriteOps(rollbackSnapshot.settings)
   };
 }
 
-export function createSettingsUpdates(settingsById: PatchableSettings): SettingsUpdate[] {
+export function toSettingWriteOps(settingsById: ConfigurationSnapshot): ConfigurationUpdate[] {
   return SETTINGS_ORDER.map((settingId) => {
     const [section, ...keyParts] = settingId.split(".");
 
@@ -101,61 +97,13 @@ export function createSettingsUpdates(settingsById: PatchableSettings): Settings
   });
 }
 
-export function readPatchableSettings(vscode: VscodeSettingsApi, target: unknown): PatchableSettings {
-  const settings = createEmptyPatchableSettings();
-
-  for (const settingId of SETTINGS_ORDER) {
-    const [section, ...keyParts] = settingId.split(".");
-    const key = keyParts.join(".");
-    const config = vscode.workspace.getConfiguration(section);
-    const inspected = config.inspect(key) || {};
-    settings[settingId] = getInspectedValueForTarget(vscode, inspected, target);
-  }
-
-  return settings;
-}
-
-export async function applySettingsUpdates(
-  vscode: VscodeSettingsApi,
-  settingsUpdates: SettingsUpdate[],
-  target: unknown
-): Promise<void> {
-  for (const update of settingsUpdates) {
-    const config = vscode.workspace.getConfiguration(update.section);
-    if (!config.update) {
-      throw new Error(`Configuration update API is unavailable for ${update.section}.${update.key}.`);
-    }
-    await config.update(update.key, update.value, target);
-  }
-}
-
-function getInspectedValueForTarget(
-  vscode: VscodeSettingsApi,
-  inspected: { globalValue?: unknown; workspaceValue?: unknown; workspaceFolderValue?: unknown },
-  target: unknown
-): PlainSetting {
-  if (vscode.ConfigurationTarget && target === vscode.ConfigurationTarget.Global) {
-    return clonePlainSetting(inspected.globalValue);
-  }
-
-  if (vscode.ConfigurationTarget && target === vscode.ConfigurationTarget.Workspace) {
-    return clonePlainSetting(inspected.workspaceValue);
-  }
-
-  if (vscode.ConfigurationTarget && target === vscode.ConfigurationTarget.WorkspaceFolder) {
-    return clonePlainSetting(inspected.workspaceFolderValue);
-  }
-
-  return clonePlainSetting(inspected.globalValue);
-}
-
-function mergePlainObjects(base: PlainSetting, override: PlainSetting): PlainSetting {
+function mergePlainObjects(base: SettingDictionary, override: SettingDictionary): SettingDictionary {
   const baseClone = clonePlainSetting(base);
   const overrideClone = clonePlainSetting(override);
 
   for (const [key, value] of Object.entries(overrideClone)) {
     if (isPlainObject(baseClone[key]) && isPlainObject(value)) {
-      baseClone[key] = mergePlainObjects(baseClone[key] as PlainSetting, value);
+      baseClone[key] = mergePlainObjects(baseClone[key] as SettingDictionary, value);
     } else {
       baseClone[key] = value;
     }
@@ -164,15 +112,15 @@ function mergePlainObjects(base: PlainSetting, override: PlainSetting): PlainSet
   return baseClone;
 }
 
-function clonePlainSetting(value: unknown): PlainSetting {
+function clonePlainSetting(value: unknown): SettingDictionary {
   if (!isPlainObject(value)) {
     return {};
   }
 
-  return JSON.parse(JSON.stringify(value)) as PlainSetting;
+  return JSON.parse(JSON.stringify(value)) as SettingDictionary;
 }
 
-function createEmptyPatchableSettings(): PatchableSettings {
+function createEmptyPatchableSettings(): ConfigurationSnapshot {
   return {
     "workbench.colorCustomizations": {},
     "editor.tokenColorCustomizations": {},
@@ -180,6 +128,6 @@ function createEmptyPatchableSettings(): PatchableSettings {
   };
 }
 
-function isPlainObject(value: unknown): value is PlainSetting {
+function isPlainObject(value: unknown): value is SettingDictionary {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }

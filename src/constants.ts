@@ -1,4 +1,9 @@
-import type { SettingDescriptor, SettingId } from "./types";
+import type { TargetSettingId } from "./core/types/patch.types";
+
+export interface SettingDescriptor {
+  section: string;
+  key: string;
+}
 
 export const OUTPUT_CHANNEL_NAME = "Color Calibration Theme Probe";
 
@@ -18,13 +23,13 @@ export const SETTING_IDS = {
   workbenchColorCustomizations: "workbench.colorCustomizations",
   editorTokenColorCustomizations: "editor.tokenColorCustomizations",
   editorSemanticTokenColorCustomizations: "editor.semanticTokenColorCustomizations"
-} as const satisfies Record<string, SettingId>;
+} as const satisfies Record<string, TargetSettingId>;
 
 export const SETTINGS_ORDER = [
   SETTING_IDS.workbenchColorCustomizations,
   SETTING_IDS.editorTokenColorCustomizations,
   SETTING_IDS.editorSemanticTokenColorCustomizations
-] as const satisfies readonly SettingId[];
+] as const satisfies readonly TargetSettingId[];
 
 export const COLOR_CUSTOMIZATION_SETTINGS = [
   { section: "workbench", key: "colorTheme" },
