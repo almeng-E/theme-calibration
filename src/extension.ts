@@ -1,5 +1,7 @@
 import * as vscode from "vscode";
 import { COMMAND_IDS, OUTPUT_CHANNEL_NAME, ROLLBACK_STATE_KEY } from "./constants";
+import { createEditorViewerModel } from "./core/editorViewerModel";
+import { renderEditorViewerHtml } from "./core/editorViewerRenderer";
 import { createPatchCandidates, createPatchRecipeFromCandidates } from "./core/patchGenerator";
 import { createPreviewModel, renderPreviewHtml } from "./core/previewRenderer";
 import {
@@ -31,6 +33,7 @@ export function activate(context: vscode.ExtensionContext): void {
     registerCommand(output, COMMAND_IDS.printPatchCandidates, "Patch candidate generation", handlePrintPatchCandidates),
     registerCommand(output, COMMAND_IDS.openBeforeAfterPreview, "Before/after preview", handleOpenBeforeAfterPreview),
     registerCommand(output, COMMAND_IDS.openCandidatePreview, "Candidate preview", handleOpenCandidatePreview),
+    registerCommand(output, COMMAND_IDS.openEditorViewer, "Editor viewer", handleOpenEditorViewer),
     registerCommand(output, COMMAND_IDS.applyHardcodedPatch, "Hardcoded patch apply", (out) => handleApplyPatch(out, context)),
     registerCommand(output, COMMAND_IDS.rollbackHardcodedPatch, "Hardcoded patch rollback", (out) => handleRollbackPatch(out, context))
   );
@@ -163,6 +166,29 @@ async function handleOpenCandidatePreview(output: vscode.OutputChannel): Promise
   );
 }
 
+async function handleOpenEditorViewer(output: vscode.OutputChannel): Promise<void> {
+  const probe = await collectThemeSnapshot(vscode, { includeThemeDefinitions: true });
+  const report = createThemeSignalReport(probe);
+  const viewerModel = createEditorViewerModel(report);
+
+  openHtmlPanel(
+    "colorCalibrationEditorViewer",
+    "Color Calibration Editor Viewer",
+    renderEditorViewerHtml(viewerModel)
+  );
+
+  output.appendLine(JSON.stringify({
+    themeName: viewerModel.themeName,
+    samples: viewerModel.samples.length,
+    regions: viewerModel.samples.reduce(
+      (count, sample) => count + sample.lines.reduce((lineCount, line) => lineCount + line.regions.length, 0),
+      0
+    )
+  }, null, 2));
+  console.log("[Color Calibration] Editor viewer", viewerModel);
+  vscode.window.showInformationMessage(`Editor viewer opened for ${viewerModel.themeName}.`);
+}
+
 async function handleApplyPatch(output: vscode.OutputChannel, context: vscode.ExtensionContext): Promise<void> {
   const target = vscode.ConfigurationTarget.Global;
   const currentThemeName = vscode.workspace.getConfiguration("workbench").get<string | undefined>("colorTheme");
@@ -234,6 +260,10 @@ function openPreviewPanel(
   title: string,
   previewModel: ReturnType<typeof createPreviewModel>
 ): void {
+  openHtmlPanel(viewType, title, renderPreviewHtml(previewModel));
+}
+
+function openHtmlPanel(viewType: string, title: string, html: string): void {
   const panel = vscode.window.createWebviewPanel(
     viewType,
     title,
@@ -244,7 +274,6 @@ function openPreviewPanel(
     }
   );
 
-  panel.webview.html = renderPreviewHtml(previewModel);
+  panel.webview.html = html;
 }
-
 
