@@ -313,6 +313,11 @@ function openEditorViewerPanel(
       const solution = createIntentSolution(report, intent);
       const notification = createIntentSolutionNotification(solution);
 
+      void panel.webview.postMessage({
+        type: "solutionResult",
+        solution
+      });
+
       output.appendLine(`[Region Click] ${JSON.stringify({ intent, solution }, null, 2)}`);
       console.log("[Color Calibration] Region click solution", solution);
 
