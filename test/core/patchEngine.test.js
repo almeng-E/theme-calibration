@@ -7,7 +7,7 @@ const {
   buildPatchPlan,
   buildRollbackPlan,
   wrapRecipeForTheme
-} = require("../../out/core/patchEngine");
+} = require("../../out/patch/patchService");
 
 test("buildPatchPlan preserves existing overrides while applying PoC patch values", () => {
   const existingSettings = {

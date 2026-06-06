@@ -5,7 +5,7 @@ const assert = require("node:assert/strict");
 const {
   createPatchCandidates,
   createPatchRecipeFromCandidates
-} = require("../../out/core/patchGenerator");
+} = require("../../out/diagnose/diagnosticEngine");
 
 test("createPatchCandidates creates a token color candidate for a low contrast comment risk", () => {
   const candidates = createPatchCandidates({

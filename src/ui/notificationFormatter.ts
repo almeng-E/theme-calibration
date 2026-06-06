@@ -1,5 +1,3 @@
-import type { IntentSolution } from "../core/intentSolution";
-
 export type IntentSolutionNotificationLevel = "info" | "warning";
 
 export interface IntentSolutionNotification {
@@ -7,7 +5,7 @@ export interface IntentSolutionNotification {
   message: string;
 }
 
-export function createIntentSolutionNotification(solution: IntentSolution): IntentSolutionNotification {
+export function createIntentSolutionNotification(solution: any): IntentSolutionNotification {
   if (solution.status === "candidates") {
     return {
       level: "info",

@@ -3,14 +3,14 @@ import type {
   RawThemeData,
   ThemeEnvironment,
   TokenColorRule
-} from "./types/theme.types";
+} from "../types/theme.types";
 import type {
   ColorSignal,
   ColorSignalMap,
   ColorSignalRole,
   ThemeAnalysisReport
-} from "./types/signal.types";
-import { analyzeVisibility } from "./visibilityAnalyzer";
+} from "../types/signal.types";
+import { analyzeVisibility } from "../diagnose/visibilityRules";
 
 // ============================================================
 // 1. Main Entry

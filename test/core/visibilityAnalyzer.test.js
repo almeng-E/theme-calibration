@@ -6,7 +6,7 @@ const {
   analyzeVisibility,
   calculateSignalContrasts,
   createVisibilityRisks
-} = require("../../out/core/visibilityAnalyzer");
+} = require("../../out/diagnose/visibilityRules");
 
 test("calculateSignalContrasts calculates contrast for signals against editor background", () => {
   const contrast = calculateSignalContrasts({

@@ -3,8 +3,8 @@ import type {
   ColorSignalRole,
   SignalContrastMap,
   VisibilityRisk
-} from "./types/signal.types";
-import { calculateContrastRatio, calculateColorDistance } from "./colorUtils";
+} from "../types/signal.types";
+import { calculateContrastRatio, calculateColorDistance } from "../utils/colorUtils";
 
 export interface VisibilityAnalysisResult {
   contrast: SignalContrastMap;

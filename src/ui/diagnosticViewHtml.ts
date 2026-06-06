@@ -3,8 +3,8 @@ import type {
   EditorViewerModel,
   EditorViewerRegion,
   EditorViewerSample
-} from "./types/editorViewer.types";
-import { escapeHtml, cssColor } from "./htmlUtils";
+} from "../types/editorViewer.types";
+import { escapeHtml, cssColor } from "../ui/htmlUtils";
 
 export function renderEditorViewerHtml(model: EditorViewerModel, nonce?: string): string {
   const samples = model.samples.map(renderSample).join("");

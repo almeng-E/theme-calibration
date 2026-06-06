@@ -1,4 +1,3 @@
-import type { CalibrationIntentInput } from "./calibration.types";
 import type { ColorHexMap, ColorSignalRole, VisibilityRisk } from "./signal.types";
 
 export type EditorViewerSampleKind = "syntax" | "diagnostic" | "diff";
@@ -10,7 +9,7 @@ export interface EditorViewerRegion {
   text: string;
   color: string;
   backgroundColor?: string;
-  intent: CalibrationIntentInput;
+  intent: any;
 }
 
 export interface EditorViewerLine {

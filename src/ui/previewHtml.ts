@@ -1,20 +1,20 @@
 import type {
   PreviewModel,
   PreviewPane
-} from "./types/preview.types";
+} from "../types/preview.types";
 import type {
   PatchCandidate,
   PatchRecipe,
   SettingDictionary
-} from "./types/patch.types";
+} from "../types/patch.types";
 import type {
   ColorHexMap,
   VisibilityRisk,
   ThemeAnalysisReport
-} from "./types/signal.types";
-import { isPlainObject } from "./objectUtils";
-import { normalizeReportSignals } from "./signalDefaults";
-import { escapeHtml, cssColor, withAlphaFallback } from "./htmlUtils";
+} from "../types/signal.types";
+import { isPlainObject } from "../utils/objectUtils";
+import { normalizeReportSignals } from "../adapter/vscodeDefaults";
+import { escapeHtml, cssColor, withAlphaFallback } from "../ui/htmlUtils";
 
 // ============================================================
 // 1. Constants & Types

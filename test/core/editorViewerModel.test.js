@@ -5,7 +5,7 @@ const assert = require("node:assert/strict");
 const {
   createEditorViewerModel,
   findEditorViewerRegion
-} = require("../../out/core/editorViewerModel");
+} = require("../../out/ui/diagnosticViewModel");
 
 test("createEditorViewerModel creates editor-like samples from current theme signals", () => {
   const model = createEditorViewerModel(createFakeReport());

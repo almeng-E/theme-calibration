@@ -1,6 +1,6 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { createIntentSolutionNotification } = require("../../out/adapter/intentSolutionNotification");
+const { createIntentSolutionNotification } = require("../../out/ui/notificationFormatter");
 
 test("createIntentSolutionNotification creates info message for available candidates", () => {
   const notification = createIntentSolutionNotification({

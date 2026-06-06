@@ -2,16 +2,16 @@ import type {
   ColorHexMap,
   ColorSignalRole,
   ThemeAnalysisReport
-} from "./types/signal.types";
+} from "../types/signal.types";
 import type {
   EditorViewerLine,
   EditorViewerModel,
   EditorViewerRegion,
   EditorViewerSample,
   EditorViewerSampleKind
-} from "./types/editorViewer.types";
-import { SIGNAL_DEFAULTS, normalizeReportSignals } from "./signalDefaults";
-import { withAlphaFallback } from "./htmlUtils";
+} from "../types/editorViewer.types";
+import { SIGNAL_DEFAULTS, normalizeReportSignals } from "../adapter/vscodeDefaults";
+import { withAlphaFallback } from "../ui/htmlUtils";
 
 
 

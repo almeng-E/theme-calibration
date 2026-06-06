@@ -1,28 +1,25 @@
 import * as vscode from "vscode";
 import * as crypto from "crypto";
 import { CANDIDATE_ROLLBACK_STATE_KEY, COMMAND_IDS, OUTPUT_CHANNEL_NAME, ROLLBACK_STATE_KEY } from "./constants";
-import { createIntentSolutionNotification } from "./adapter/intentSolutionNotification";
-import { normalizeCalibrationIntentPayload } from "./core/calibrationIntent";
-import { createCandidatePatchApplyPlan } from "./core/candidatePatchService";
-import { createEditorViewerModel } from "./core/editorViewerModel";
-import { renderEditorViewerHtml } from "./core/editorViewerRenderer";
-import { createIntentSolution } from "./core/intentSolution";
-import { createPatchCandidates, createPatchRecipeFromCandidates } from "./core/patchGenerator";
-import { createPreviewModel, renderPreviewHtml } from "./core/previewRenderer";
+import { createIntentSolutionNotification } from "./ui/notificationFormatter";
+import { createEditorViewerModel } from "./ui/diagnosticViewModel";
+import { renderEditorViewerHtml } from "./ui/diagnosticViewHtml";
+import { createPatchCandidates, createPatchRecipeFromCandidates } from "./diagnose/diagnosticEngine";
+import { createPreviewModel, renderPreviewHtml } from "./ui/previewHtml";
 import {
-  POC_PATCH_RECIPE,
   buildPatchPlan,
   buildRollbackPlan,
-  wrapRecipeForTheme
-} from "./core/patchEngine";
+  wrapRecipeForTheme,
+  createCandidatePatchApplyPlan
+} from "./patch/patchService";
 import {
   collectThemeSnapshot,
   readCurrentPatchableSettings,
   writeSettingsToVscode
-} from "./adapter/vscode.adapter";
-import { createThemeSignalReport } from "./core/themeAnalyzer";
-import { getErrorMessage } from "./core/objectUtils";
-import type { PatchCandidate, RollbackSnapshot } from "./core/types/patch.types";
+} from "./adapter/vscodeConfigAdapter";
+import { createThemeSignalReport } from "./diagnose/diagnosticService";
+import { getErrorMessage } from "./utils/objectUtils";
+import type { PatchCandidate, RollbackSnapshot } from "./types/patch.types";
 
 // ============================================================
 // Extension Lifecycle
@@ -36,13 +33,10 @@ export function activate(context: vscode.ExtensionContext): void {
     registerCommand(output, COMMAND_IDS.printThemeProbe, "Theme probe", handlePrintProbe),
     registerCommand(output, COMMAND_IDS.printThemeSignalReport, "Theme signal report", handlePrintSignalReport),
     registerCommand(output, COMMAND_IDS.printPatchCandidates, "Patch candidate generation", handlePrintPatchCandidates),
-    registerCommand(output, COMMAND_IDS.openBeforeAfterPreview, "Before/after preview", handleOpenBeforeAfterPreview),
     registerCommand(output, COMMAND_IDS.openCandidatePreview, "Candidate preview", handleOpenCandidatePreview),
     registerCommand(output, COMMAND_IDS.openEditorViewer, "Editor viewer", handleOpenEditorViewer),
     registerCommand(output, COMMAND_IDS.applyCandidatePatch, "Candidate patch apply", (out) => handleApplyCandidatePatch(out, context)),
-    registerCommand(output, COMMAND_IDS.rollbackCandidatePatch, "Candidate patch rollback", (out) => handleRollbackCandidatePatch(out, context)),
-    registerCommand(output, COMMAND_IDS.applyHardcodedPatch, "Hardcoded patch apply", (out) => handleApplyPatch(out, context)),
-    registerCommand(output, COMMAND_IDS.rollbackHardcodedPatch, "Hardcoded patch rollback", (out) => handleRollbackPatch(out, context))
+    registerCommand(output, COMMAND_IDS.rollbackCandidatePatch, "Candidate patch rollback", (out) => handleRollbackCandidatePatch(out, context))
   );
 }
 
@@ -111,22 +105,7 @@ async function handlePrintPatchCandidates(output: vscode.OutputChannel): Promise
   );
 }
 
-async function handleOpenBeforeAfterPreview(output: vscode.OutputChannel): Promise<void> {
-  const probe = await collectThemeSnapshot(vscode, { includeThemeDefinitions: true });
-  const report = createThemeSignalReport(probe);
-  const previewModel = createPreviewModel(report, POC_PATCH_RECIPE);
 
-  openPreviewPanel("colorCalibrationBeforeAfterPreview", "Color Calibration Preview", previewModel);
-
-  output.appendLine(JSON.stringify({
-    themeName: previewModel.themeName,
-    risks: previewModel.risks.length,
-    before: previewModel.before.signals,
-    after: previewModel.after.signals
-  }, null, 2));
-  console.log("[Color Calibration] Before/after preview", previewModel);
-  vscode.window.showInformationMessage(`Before/after preview opened for ${previewModel.themeName}.`);
-}
 
 async function handleOpenCandidatePreview(output: vscode.OutputChannel): Promise<void> {
   const probe = await collectThemeSnapshot(vscode, { includeThemeDefinitions: true });
@@ -199,30 +178,7 @@ async function handleOpenEditorViewer(output: vscode.OutputChannel): Promise<voi
   vscode.window.showInformationMessage(`Editor viewer opened for ${viewerModel.themeName}.`);
 }
 
-async function handleApplyPatch(output: vscode.OutputChannel, context: vscode.ExtensionContext): Promise<void> {
-  const target = vscode.ConfigurationTarget.Global;
-  const currentThemeName = vscode.workspace.getConfiguration("workbench").get<string | undefined>("colorTheme");
-  const patchRecipe = wrapRecipeForTheme(currentThemeName, POC_PATCH_RECIPE);
-  const existingSettings = readCurrentPatchableSettings(vscode, target);
-  const patchPlan = buildPatchPlan(existingSettings, patchRecipe);
 
-  output.appendLine("Applying settings updates...");
-  await writeSettingsToVscode(vscode, patchPlan.settingsUpdates, target);
-  await context.globalState.update(ROLLBACK_STATE_KEY, patchPlan.rollbackSnapshot);
-
-  output.appendLine(JSON.stringify({
-    appliedRecipe: patchPlan.recipeId,
-    target: "Global",
-    currentThemeName,
-    rollbackStateKey: ROLLBACK_STATE_KEY,
-    settingsUpdates: patchPlan.settingsUpdates,
-    rollbackSnapshot: patchPlan.rollbackSnapshot
-  }, null, 2));
-  console.log("[Color Calibration] Hardcoded patch applied", patchPlan);
-  vscode.window.showInformationMessage(
-    `Hardcoded theme patch applied. Rollback snapshot saved for ${patchPlan.recipeId}.`
-  );
-}
 
 async function handleApplyCandidatePatch(output: vscode.OutputChannel, context: vscode.ExtensionContext): Promise<void> {
   const target = vscode.ConfigurationTarget.Global;
@@ -270,29 +226,7 @@ async function handleApplyCandidatePatch(output: vscode.OutputChannel, context: 
   vscode.window.showInformationMessage(`Applied ${applyPlan.selectedCandidates.length} candidate patch(es).`);
 }
 
-async function handleRollbackPatch(output: vscode.OutputChannel, context: vscode.ExtensionContext): Promise<void> {
-  const rollbackSnapshot = context.globalState.get<RollbackSnapshot>(ROLLBACK_STATE_KEY);
 
-  if (!rollbackSnapshot) {
-    output.appendLine("No rollback snapshot found.");
-    vscode.window.showWarningMessage("No hardcoded patch rollback snapshot found.");
-    return;
-  }
-
-  output.appendLine("Restoring original settings...");
-  const rollbackPlan = buildRollbackPlan(rollbackSnapshot);
-
-  await writeSettingsToVscode(vscode, rollbackPlan.settingsUpdates, vscode.ConfigurationTarget.Global);
-  await context.globalState.update(ROLLBACK_STATE_KEY, undefined);
-
-  output.appendLine(JSON.stringify({
-    restoredRecipe: rollbackPlan.recipeId,
-    restoredFrom: rollbackPlan.createdAt,
-    settingsUpdates: rollbackPlan.settingsUpdates
-  }, null, 2));
-  console.log("[Color Calibration] Hardcoded patch rolled back", rollbackPlan);
-  vscode.window.showInformationMessage(`Hardcoded theme patch rolled back for ${rollbackPlan.recipeId}.`);
-}
 
 async function handleRollbackCandidatePatch(output: vscode.OutputChannel, context: vscode.ExtensionContext): Promise<void> {
   const rollbackSnapshot = context.globalState.get<RollbackSnapshot>(CANDIDATE_ROLLBACK_STATE_KEY);
@@ -383,8 +317,8 @@ function openEditorViewerPanel(
     }
 
     try {
-      const intent = normalizeCalibrationIntentPayload(message.intent);
-      const solution = createIntentSolution(report, intent);
+      const intent = message.intent;
+      const solution = { status: "candidates", candidates: [], intent };
       const notification = createIntentSolutionNotification(solution);
 
       void panel.webview.postMessage({

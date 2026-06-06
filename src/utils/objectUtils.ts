@@ -1,4 +1,4 @@
-import type { ConfigurationSnapshot, SettingDictionary } from "./types/patch.types";
+import type { ConfigurationSnapshot, SettingDictionary } from "../types/patch.types";
 
 /**
  * 값이 순수 객체(plain object)인지 검사하는 타입 가드.

@@ -4,7 +4,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const {
   createThemeSignalReport
-} = require("../../out/core/themeAnalyzer");
+} = require("../../out/diagnose/diagnosticService");
 const {
   calculateContrastRatio,
   parseHexColor
