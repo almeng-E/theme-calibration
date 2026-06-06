@@ -139,6 +139,8 @@ function findTokenColor(
   signalName: ColorSignalRole,
   scopeMatcher: (scope: string) => boolean
 ): ColorSignal | undefined {
+  let matched: ColorSignal | undefined;
+
   for (const rule of tokenColors) {
     const foreground = rule.settings?.foreground;
     if (!foreground) {
@@ -147,14 +149,14 @@ function findTokenColor(
 
     const scopes = normalizeScopes(rule.scope);
     if (scopes.some(scopeMatcher)) {
-      return {
+      matched = {
         value: foreground,
         source: `tokenColors.${signalName}`
       };
     }
   }
 
-  return undefined;
+  return matched;
 }
 
 function addSignal(signals: ColorSignalMap, name: ColorSignalRole, signal: ColorSignal | undefined): void {
