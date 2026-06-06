@@ -89,7 +89,7 @@ export async function loadThemeFile(
     return {
       status: "unsupported-file-type",
       filePath,
-      reason: "Only JSON/JSONC theme files are parsed in this PoC."
+      reason: "Only JSON/JSONC theme files are parsed in this extension."
     };
   }
 

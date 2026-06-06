@@ -2,18 +2,13 @@
 
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const {
-  createPatchCandidates,
-  createPatchRecipeFromCandidates
-} = require("../../out/diagnose/diagnosticEngine");
-const {
-  buildPatchPlan,
-  buildRollbackPlan
-} = require("../../out/patch/patchService");
+const { createPatchCandidates, createPatchRecipeFromCandidates } = require("../../out/diagnose/diagnosticEngine");
+const { createCandidatePatchApplyPlan, buildRollbackPlan, buildPatchPlan } = require("../../out/patch/patchService");
+const { LOW_CONTRAST_MAPPINGS, SIMILAR_SIGNAL_MAPPINGS } = require("../fixtures/diagnostic.fixtures.js");
 
 test("candidate patch flow generates proposals, applies selected candidates, and rolls back", () => {
   const report = createCandidateRichReport();
-  const candidates = createPatchCandidates(report);
+  const candidates = createPatchCandidates(report, [...LOW_CONTRAST_MAPPINGS, ...SIMILAR_SIGNAL_MAPPINGS]);
 
   assert.deepEqual(
     candidates.map((candidate) => candidate.id),
@@ -74,6 +69,29 @@ test("candidate patch flow generates proposals, applies selected candidates, and
 
   assert.equal(rollbackPlan.recipeId, "patch-candidates-default-dark");
   assert.deepEqual(rolledBackSettings, existingSettings);
+});
+
+test("createCandidatePatchApplyPlan integrates successfully using externally provided candidates", () => {
+  const report = createCandidateRichReport();
+  const candidates = createPatchCandidates(report, [...LOW_CONTRAST_MAPPINGS, ...SIMILAR_SIGNAL_MAPPINGS]);
+  const existingSettings = createExistingSettings();
+
+  const applyPlan = createCandidatePatchApplyPlan({
+    report,
+    candidates,
+    selectedCandidateIds: [
+      "lowContrast-comment-editor.tokenColorCustomizations-comments"
+    ],
+    existingSettings,
+    now: new Date("2026-06-06T00:00:00.000Z")
+  });
+
+  assert.equal(applyPlan.selectedCandidates.length, 1);
+  assert.equal(applyPlan.patchPlan.recipeId, "patch-candidates-default-dark");
+  assert.equal(
+    applyPlan.patchPlan.nextSettings["editor.tokenColorCustomizations"]["[Default Dark+]"].comments,
+    "#8fb8ff"
+  );
 });
 
 function createCandidateRichReport() {

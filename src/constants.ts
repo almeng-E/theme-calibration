@@ -11,16 +11,12 @@ export const COMMAND_IDS = {
   printThemeProbe: "colorCalibration.printThemeProbe",
   printThemeSignalReport: "colorCalibration.printThemeSignalReport",
   printPatchCandidates: "colorCalibration.printPatchCandidates",
-  openBeforeAfterPreview: "colorCalibration.openBeforeAfterPreview",
   openCandidatePreview: "colorCalibration.openCandidatePreview",
   openEditorViewer: "colorCalibration.openEditorViewer",
   applyCandidatePatch: "colorCalibration.applyCandidatePatch",
-  rollbackCandidatePatch: "colorCalibration.rollbackCandidatePatch",
-  applyHardcodedPatch: "colorCalibration.applyHardcodedPatch",
-  rollbackHardcodedPatch: "colorCalibration.rollbackHardcodedPatch"
+  rollbackCandidatePatch: "colorCalibration.rollbackCandidatePatch"
 } as const;
 
-export const ROLLBACK_STATE_KEY = "colorCalibration.pocHardcodedPatch.rollbackSnapshot";
 export const CANDIDATE_ROLLBACK_STATE_KEY = "colorCalibration.candidatePatch.rollbackSnapshot";
 
 export const SETTING_IDS = {

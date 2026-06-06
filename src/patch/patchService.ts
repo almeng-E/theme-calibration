@@ -91,19 +91,20 @@ function mergePlainObjects(base: SettingDictionary, override: SettingDictionary)
 
 export interface CandidatePatchApplyPlanInput {
   report: ThemeAnalysisReport;
+  candidates: readonly PatchCandidate[];
   selectedCandidateIds: readonly string[];
   existingSettings: ConfigurationSnapshot;
   now?: Date;
 }
 
 export interface CandidatePatchApplyPlan {
-  candidates: PatchCandidate[];
-  selectedCandidates: PatchCandidate[];
+  candidates: readonly PatchCandidate[];
+  selectedCandidates: readonly PatchCandidate[];
   patchPlan: PatchExecutionPlan;
 }
 
 export function createCandidatePatchApplyPlan(input: CandidatePatchApplyPlanInput): CandidatePatchApplyPlan {
-  const candidates = createPatchCandidates(input.report);
+  const candidates = input.candidates;
 
   if (candidates.length === 0) {
     throw new Error("No patch candidates were generated for the current theme.");
