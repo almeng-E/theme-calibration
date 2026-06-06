@@ -3,11 +3,11 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const {
-  POC_PATCH_RECIPE,
   buildPatchPlan,
   buildRollbackPlan,
   wrapRecipeForTheme
 } = require("../../out/patch/patchService");
+const { POC_PATCH_RECIPE } = require("../fixtures/patch.fixtures.js");
 
 test("buildPatchPlan preserves existing overrides while applying PoC patch values", () => {
   const existingSettings = {

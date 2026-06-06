@@ -2,18 +2,13 @@
 
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const {
-  createPatchCandidates,
-  createPatchRecipeFromCandidates
-} = require("../../out/diagnose/diagnosticEngine");
-const {
-  buildPatchPlan,
-  buildRollbackPlan
-} = require("../../out/patch/patchService");
+const { createPatchCandidates, createPatchRecipeFromCandidates } = require("../../out/diagnose/diagnosticEngine");
+const { createCandidatePatchApplyPlan, buildRollbackPlan, buildPatchPlan } = require("../../out/patch/patchService");
+const { LOW_CONTRAST_MAPPINGS, SIMILAR_SIGNAL_MAPPINGS } = require("../fixtures/diagnostic.fixtures.js");
 
 test("candidate patch flow generates proposals, applies selected candidates, and rolls back", () => {
   const report = createCandidateRichReport();
-  const candidates = createPatchCandidates(report);
+  const candidates = createPatchCandidates(report, [...LOW_CONTRAST_MAPPINGS, ...SIMILAR_SIGNAL_MAPPINGS]);
 
   assert.deepEqual(
     candidates.map((candidate) => candidate.id),

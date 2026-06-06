@@ -6,6 +6,7 @@ const {
   createPatchCandidates,
   createPatchRecipeFromCandidates
 } = require("../../out/diagnose/diagnosticEngine");
+const { LOW_CONTRAST_MAPPINGS, SIMILAR_SIGNAL_MAPPINGS } = require("../fixtures/diagnostic.fixtures.js");
 
 test("createPatchCandidates creates a token color candidate for a low contrast comment risk", () => {
   const candidates = createPatchCandidates({
@@ -21,7 +22,7 @@ test("createPatchCandidates creates a token color candidate for a low contrast c
         threshold: 4.5
       }
     ]
-  });
+  }, [...LOW_CONTRAST_MAPPINGS, ...SIMILAR_SIGNAL_MAPPINGS]);
 
   assert.equal(candidates.length, 1);
   assert.deepEqual(candidates[0], {
@@ -53,7 +54,7 @@ test("createPatchCandidates creates a deletion gutter candidate for similar erro
         colorDistance: 0
       }
     ]
-  });
+  }, [...LOW_CONTRAST_MAPPINGS, ...SIMILAR_SIGNAL_MAPPINGS]);
 
   assert.equal(candidates.length, 1);
   assert.equal(candidates[0].settingId, "workbench.colorCustomizations");
@@ -69,7 +70,7 @@ test("createPatchCandidates skips risks that do not have conservative patch mapp
       { type: "missingThemeDefinition" },
       { type: "noObviousRisk" }
     ]
-  });
+  }, [...LOW_CONTRAST_MAPPINGS, ...SIMILAR_SIGNAL_MAPPINGS]);
 
   assert.deepEqual(candidates, []);
 });

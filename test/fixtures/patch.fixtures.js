@@ -1,6 +1,4 @@
-import type { PatchRecipe } from "../../src/types/patch.types";
-
-export const POC_PATCH_RECIPE: PatchRecipe = {
+const POC_PATCH_RECIPE = {
   id: "poc-hardcoded-contrast-v1",
   description: "Hardcoded conservative contrast patch for settings overlay and rollback PoC.",
   settings: {
@@ -16,3 +14,5 @@ export const POC_PATCH_RECIPE: PatchRecipe = {
     "editor.semanticTokenColorCustomizations": {}
   }
 };
+
+module.exports = { POC_PATCH_RECIPE };

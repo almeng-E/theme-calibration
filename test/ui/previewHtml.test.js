@@ -2,7 +2,7 @@
 
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { POC_PATCH_RECIPE } = require("../../out/patch/patchService");
+const { POC_PATCH_RECIPE } = require("../fixtures/patch.fixtures.js");
 const {
   createPreviewModel,
   renderPreviewHtml
