@@ -24,36 +24,8 @@
   "contributes": {
     "commands": [
       {
-        "command": "colorCalibration.printThemeProbe",
-        "title": "Color Calibration: Print Theme Probe"
-      },
-      {
-        "command": "colorCalibration.printThemeSignalReport",
-        "title": "Color Calibration: Print Theme Signal Report"
-      },
-      {
-        "command": "colorCalibration.printPatchCandidates",
-        "title": "Color Calibration: Print Patch Candidates"
-      },
-      {
-        "command": "colorCalibration.openBeforeAfterPreview",
-        "title": "Color Calibration: Open Before/After Preview"
-      },
-      {
-        "command": "colorCalibration.openCandidatePreview",
-        "title": "Color Calibration: Open Candidate Preview"
-      },
-      {
         "command": "colorCalibration.openEditorViewer",
         "title": "Color Calibration: Open Editor Viewer"
-      },
-      {
-        "command": "colorCalibration.applyHardcodedPatch",
-        "title": "Color Calibration: Apply Hardcoded Patch PoC"
-      },
-      {
-        "command": "colorCalibration.rollbackHardcodedPatch",
-        "title": "Color Calibration: Rollback Hardcoded Patch PoC"
       }
     ]
   },
