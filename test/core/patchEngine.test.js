@@ -77,7 +77,7 @@ test("buildRollbackPlan restores exactly the settings captured in the snapshot",
 });
 
 test("wrapRecipeForTheme scopes workbench colors to the configured theme", () => {
-  const recipe = wrapRecipeForTheme("Default Dark+");
+  const recipe = wrapRecipeForTheme("Default Dark+", POC_PATCH_RECIPE);
 
   assert.ok(recipe.settings["workbench.colorCustomizations"]["[Default Dark+]"]);
   assert.equal(
@@ -96,7 +96,7 @@ test("buildPatchPlan preserves existing values inside a theme-specific customiza
     "editor.tokenColorCustomizations": {},
     "editor.semanticTokenColorCustomizations": {}
   };
-  const recipe = wrapRecipeForTheme("Default Dark+");
+  const recipe = wrapRecipeForTheme("Default Dark+", POC_PATCH_RECIPE);
 
   const plan = buildPatchPlan(existingSettings, recipe);
 

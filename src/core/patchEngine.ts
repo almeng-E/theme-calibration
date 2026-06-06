@@ -37,7 +37,7 @@ export const POC_PATCH_RECIPE: PatchRecipe = {
 
 export function buildPatchPlan(
   existingSettings: ConfigurationSnapshot,
-  patchRecipe: PatchRecipe = POC_PATCH_RECIPE,
+  patchRecipe: PatchRecipe,
   now = new Date()
 ): PatchExecutionPlan {
   const nextSettings = createEmptySettingsSnapshot();
@@ -81,7 +81,7 @@ export function buildRollbackPlan(rollbackSnapshot: RollbackSnapshot | undefined
 
 export function wrapRecipeForTheme(
   themeName: string | undefined,
-  baseRecipe: PatchRecipe = POC_PATCH_RECIPE
+  baseRecipe: PatchRecipe
 ): PatchRecipe {
   if (!themeName) {
     return baseRecipe;

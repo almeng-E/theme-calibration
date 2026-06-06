@@ -13,22 +13,14 @@ import type {
   ThemeAnalysisReport
 } from "./types/signal.types";
 import { isPlainObject } from "./objectUtils";
+import { normalizeReportSignals } from "./signalDefaults";
+import { escapeHtml, cssColor, withAlphaFallback } from "./htmlUtils";
 
 // ============================================================
 // 1. Constants & Types
 // ============================================================
 
-const SIGNAL_DEFAULTS: ColorHexMap = {
-  background: "#1e1e1e",
-  foreground: "#d4d4d4",
-  comment: "#6a9955",
-  string: "#ce9178",
-  keyword: "#569cd6",
-  error: "#f44747",
-  warning: "#cca700",
-  diffAdded: "#2ea043",
-  diffDeleted: "#f44747"
-};
+
 
 export interface PreviewModelOptions {
   candidates?: PatchCandidate[];
@@ -66,18 +58,7 @@ export function createPreviewModel(
   };
 }
 
-function normalizeReportSignals(signals: ThemeAnalysisReport["signals"] | undefined): ColorHexMap {
-  const normalized = { ...SIGNAL_DEFAULTS };
 
-  for (const name of Object.keys(SIGNAL_DEFAULTS) as Array<keyof ColorHexMap>) {
-    const signal = signals?.[name];
-    if (signal?.value) {
-      normalized[name] = signal.value;
-    }
-  }
-
-  return normalized;
-}
 
 function extractPatchSignals(patchRecipe: PatchRecipe): Partial<ColorHexMap> {
   const workbenchCustomizations = findScopedSettings(patchRecipe.settings["workbench.colorCustomizations"]);
@@ -324,18 +305,6 @@ function removeEmptyValues(value: Partial<ColorHexMap>): Partial<ColorHexMap> {
   ) as Partial<ColorHexMap>;
 }
 
-function withAlphaFallback(hex: string, alpha: string): string {
-  if (/^#[0-9a-f]{6}$/i.test(hex)) {
-    return `${hex}${alpha}`;
-  }
-
-  return hex;
-}
-
-function cssColor(value: string | undefined): string {
-  return escapeHtml(value || "#ffffff");
-}
-
 function formatRisk(risk: VisibilityRisk): string {
   if (risk.message) {
     return risk.message;
@@ -346,15 +315,6 @@ function formatRisk(risk: VisibilityRisk): string {
   }
 
   return risk.type || "unknown risk";
-}
-
-function escapeHtml(value: unknown): string {
-  return String(value)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
 }
 
 function asColorString(value: unknown): string | undefined {
