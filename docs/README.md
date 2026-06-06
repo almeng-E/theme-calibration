@@ -7,6 +7,7 @@
 - [제품 PRD 및 Agile Spec](../theme_calibration_service_prd_and_agile_spec.md)
 - [Superpowers 실행 계획](./superpowers/plans/)
 - [Superpowers 설계 문서](./superpowers/specs/)
+- [아키텍쳐 설계 문서](./architecture.md)
 
 ## 현재 정리 기준
 

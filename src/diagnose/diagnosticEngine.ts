@@ -17,82 +17,27 @@ import { isPlainObject, createEmptySettingsSnapshot } from "../utils/objectUtils
 // 1. Constants & Mappings
 // ============================================================
 
-interface CandidateMapping extends CandidateSettingChange {
+export interface CandidateMappingRule {
+  type: "lowContrast" | "similarSignal";
+  signals: ColorSignalRole[];
+  settingId: TargetSettingId;
+  settingKey: string;
+  suggestedColor: string;
   confidence: number;
 }
-
-const LOW_CONTRAST_MAPPINGS: Partial<Record<ColorSignalRole, CandidateMapping>> = {
-  comment: {
-    settingId: SETTING_IDS.editorTokenColorCustomizations,
-    settingKey: "comments",
-    suggestedColor: "#8fb8ff",
-    confidence: 0.8
-  },
-  string: {
-    settingId: SETTING_IDS.editorTokenColorCustomizations,
-    settingKey: "strings",
-    suggestedColor: "#b7f2a1",
-    confidence: 0.8
-  },
-  keyword: {
-    settingId: SETTING_IDS.editorTokenColorCustomizations,
-    settingKey: "keywords",
-    suggestedColor: "#d7b7ff",
-    confidence: 0.8
-  },
-  foreground: {
-    settingId: SETTING_IDS.workbenchColorCustomizations,
-    settingKey: "editor.foreground",
-    suggestedColor: "#eeeeee",
-    confidence: 0.75
-  },
-  error: {
-    settingId: SETTING_IDS.workbenchColorCustomizations,
-    settingKey: "editorError.foreground",
-    suggestedColor: "#ff6b6b",
-    confidence: 0.75
-  },
-  warning: {
-    settingId: SETTING_IDS.workbenchColorCustomizations,
-    settingKey: "editorWarning.foreground",
-    suggestedColor: "#ffd166",
-    confidence: 0.75
-  }
-};
-
-const SIMILAR_SIGNAL_MAPPINGS: Array<{
-  pair: [ColorSignalRole, ColorSignalRole];
-  mapping: CandidateMapping;
-}> = [
-  {
-    pair: ["error", "diffDeleted"],
-    mapping: {
-      settingId: SETTING_IDS.workbenchColorCustomizations,
-      settingKey: "editorGutter.deletedBackground",
-      suggestedColor: "#ff6b6b",
-      confidence: 0.7
-    }
-  },
-  {
-    pair: ["diffAdded", "string"],
-    mapping: {
-      settingId: SETTING_IDS.workbenchColorCustomizations,
-      settingKey: "editorGutter.addedBackground",
-      suggestedColor: "#4cc38a",
-      confidence: 0.7
-    }
-  }
-];
 
 // ============================================================
 // 2. Main Generation APIs
 // ============================================================
 
-export function createPatchCandidates(report: Pick<ThemeAnalysisReport, "signals" | "risks">): PatchCandidate[] {
+export function createPatchCandidates(
+  report: Pick<ThemeAnalysisReport, "signals" | "risks">,
+  rules: CandidateMappingRule[] = [] // Default to empty, engine does not know the colors
+): PatchCandidate[] {
   const candidates: PatchCandidate[] = [];
 
   for (const risk of report.risks) {
-    const candidate = createPatchCandidate(report, risk);
+    const candidate = createPatchCandidate(report, risk, rules);
     if (candidate) {
       candidates.push(candidate);
     }
@@ -125,24 +70,25 @@ export function createPatchRecipeFromCandidates(
 
 function createPatchCandidate(
   report: Pick<ThemeAnalysisReport, "signals" | "risks">,
-  risk: VisibilityRisk
+  risk: VisibilityRisk,
+  rules: CandidateMappingRule[]
 ): PatchCandidate | undefined {
   if (risk.type === "lowContrast" && risk.signal) {
-    const mapping = LOW_CONTRAST_MAPPINGS[risk.signal];
-    if (!mapping) {
+    const rule = rules.find((r) => r.type === "lowContrast" && r.signals.includes(risk.signal!));
+    if (!rule) {
       return undefined;
     }
 
-    return buildCandidate(report, risk, [risk.signal], mapping);
+    return buildCandidate(report, risk, [risk.signal], rule);
   }
 
   if (risk.type === "similarSignal" && risk.signals?.length) {
-    const mapping = findSimilarSignalMapping(risk.signals);
-    if (!mapping) {
+    const rule = rules.find((r) => r.type === "similarSignal" && hasSameSignals(r.signals, risk.signals!));
+    if (!rule) {
       return undefined;
     }
 
-    return buildCandidate(report, risk, risk.signals, mapping);
+    return buildCandidate(report, risk, risk.signals, rule);
   }
 
   return undefined;
@@ -152,30 +98,28 @@ function buildCandidate(
   report: Pick<ThemeAnalysisReport, "signals" | "risks">,
   risk: VisibilityRisk,
   signals: ColorSignalRole[],
-  mapping: CandidateMapping
+  rule: CandidateMappingRule
 ): PatchCandidate {
   return {
     id: [
       risk.type,
       ...signals,
-      mapping.settingId,
-      mapping.settingKey
+      rule.settingId,
+      rule.settingKey
     ].join("-"),
     riskType: risk.type,
     signals,
-    settingId: mapping.settingId,
-    settingKey: mapping.settingKey,
+    settingId: rule.settingId,
+    settingKey: rule.settingKey,
     currentSignals: getCurrentSignals(report, signals),
-    suggestedColor: mapping.suggestedColor,
+    suggestedColor: rule.suggestedColor,
     reason: risk.message || createFallbackReason(risk, signals),
     scope: "theme",
-    confidence: mapping.confidence
+    confidence: rule.confidence
   };
 }
 
-function findSimilarSignalMapping(signals: ColorSignalRole[]): CandidateMapping | undefined {
-  return SIMILAR_SIGNAL_MAPPINGS.find(({ pair }) => hasSameSignals(signals, pair))?.mapping;
-}
+// Removed findSimilarSignalMapping
 
 function hasSameSignals(left: readonly ColorSignalRole[], right: readonly ColorSignalRole[]): boolean {
   return left.length === right.length && right.every((signal) => left.includes(signal));
