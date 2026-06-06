@@ -16,6 +16,7 @@
     "onCommand:colorCalibration.printPatchCandidates",
     "onCommand:colorCalibration.openBeforeAfterPreview",
     "onCommand:colorCalibration.openCandidatePreview",
+    "onCommand:colorCalibration.openEditorViewer",
     "onCommand:colorCalibration.applyHardcodedPatch",
     "onCommand:colorCalibration.rollbackHardcodedPatch"
   ],
@@ -41,6 +42,10 @@
       {
         "command": "colorCalibration.openCandidatePreview",
         "title": "Color Calibration: Open Candidate Preview"
+      },
+      {
+        "command": "colorCalibration.openEditorViewer",
+        "title": "Color Calibration: Open Editor Viewer"
       },
       {
         "command": "colorCalibration.applyHardcodedPatch",
