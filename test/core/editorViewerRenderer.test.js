@@ -32,6 +32,24 @@ test("renderEditorViewerHtml serializes region intent safely", () => {
   assert.match(html, /&quot;targetId&quot;:&quot;syntax-comment&quot;/);
 });
 
+test("renderEditorViewerHtml includes solution panel placeholders", () => {
+  const html = renderEditorViewerHtml(createEditorViewerModel(createFakeReport("Sample Dark")));
+
+  assert.match(html, /data-solution-panel/);
+  assert.match(html, /data-solution-status/);
+  assert.match(html, /data-solution-candidates/);
+  assert.match(html, /Click a highlighted editor region to inspect improvement candidates./);
+});
+
+test("renderEditorViewerHtml listens for solution result messages", () => {
+  const html = renderEditorViewerHtml(createEditorViewerModel(createFakeReport("Sample Dark")), "testnonce");
+
+  assert.match(html, /window\.addEventListener\("message"/);
+  assert.match(html, /message\.type !== "solutionResult"/);
+  assert.match(html, /renderSolutionResult\(message\.solution\)/);
+  assert.match(html, /candidate\.suggestedColor/);
+});
+
 test("renderEditorViewerHtml falls back unsafe css color values", () => {
   const model = createEditorViewerModel(createFakeReport("Sample Dark"));
   const firstSample = model.samples[0];
