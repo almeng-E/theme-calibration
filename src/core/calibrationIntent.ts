@@ -5,6 +5,7 @@ import type {
   CalibrationIntentSeverity,
   CalibrationIntentSource
 } from "./types/calibration.types";
+import { isPlainObject } from "./objectUtils";
 
 const SUPPORTED_SIGNALS = new Set<ColorSignalRole>([
   "background",
@@ -36,7 +37,7 @@ export function createCalibrationIntent(input: CalibrationIntentInput): Calibrat
 }
 
 export function normalizeCalibrationIntentPayload(payload: unknown): CalibrationIntent {
-  if (!isRecord(payload)) {
+  if (!isPlainObject(payload)) {
     throw new Error("Calibration intent payload must be an object.");
   }
 
@@ -110,6 +111,3 @@ function normalizeOptionalText(value: unknown): string | undefined {
   return value.trim() || undefined;
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
