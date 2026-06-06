@@ -1,6 +1,5 @@
 import type {
   ColorHexMap,
-  ColorSignalMap,
   ColorSignalRole,
   ThemeAnalysisReport
 } from "./types/signal.types";
@@ -11,18 +10,10 @@ import type {
   EditorViewerSample,
   EditorViewerSampleKind
 } from "./types/editorViewer.types";
+import { SIGNAL_DEFAULTS, normalizeReportSignals } from "./signalDefaults";
+import { withAlphaFallback } from "./htmlUtils";
 
-const SIGNAL_DEFAULTS: ColorHexMap = {
-  background: "#1e1e1e",
-  foreground: "#d4d4d4",
-  comment: "#6a9955",
-  string: "#ce9178",
-  keyword: "#569cd6",
-  error: "#f44747",
-  warning: "#cca700",
-  diffAdded: "#2ea043",
-  diffDeleted: "#f44747"
-};
+
 
 export function createEditorViewerModel(
   report: Partial<ThemeAnalysisReport> | undefined
@@ -144,23 +135,3 @@ function createRegion(
   };
 }
 
-function normalizeReportSignals(signals: ColorSignalMap | undefined): ColorHexMap {
-  const normalized = { ...SIGNAL_DEFAULTS };
-
-  for (const name of Object.keys(SIGNAL_DEFAULTS) as ColorSignalRole[]) {
-    const signal = signals?.[name];
-    if (signal?.value) {
-      normalized[name] = signal.value;
-    }
-  }
-
-  return normalized;
-}
-
-function withAlphaFallback(hex: string, alpha: string): string {
-  if (/^#[0-9a-f]{6}$/i.test(hex)) {
-    return `${hex}${alpha}`;
-  }
-
-  return hex;
-}

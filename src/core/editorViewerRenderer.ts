@@ -4,15 +4,20 @@ import type {
   EditorViewerRegion,
   EditorViewerSample
 } from "./types/editorViewer.types";
+import { escapeHtml, cssColor } from "./htmlUtils";
 
-export function renderEditorViewerHtml(model: EditorViewerModel): string {
+export function renderEditorViewerHtml(model: EditorViewerModel, nonce?: string): string {
   const samples = model.samples.map(renderSample).join("");
+  const nonceAttr = nonce ? ` nonce="${escapeHtml(nonce)}"` : "";
+  const cspMeta = nonce
+    ? `\n  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'nonce-${escapeHtml(nonce)}';">`
+    : "";
 
   return `<!doctype html>
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">${cspMeta}
   <title>Current Theme Editor Viewer</title>
   <style>
     body {
@@ -75,6 +80,31 @@ export function renderEditorViewerHtml(model: EditorViewerModel): string {
   <h1>Current Theme Editor Viewer</h1>
   <p class="subtitle">Current theme: ${escapeHtml(model.themeName)}</p>
   <section class="viewer-grid">${samples}</section>
+  <script${nonceAttr}>
+    (function () {
+      var vscode = acquireVsCodeApi();
+      document.addEventListener("click", function (event) {
+        var target = event.target;
+        while (target && target !== document.body) {
+          if (target.classList && target.classList.contains("region")) {
+            var intentData = target.getAttribute("data-intent");
+            if (intentData) {
+              try {
+                vscode.postMessage({
+                  type: "regionClick",
+                  intent: JSON.parse(intentData)
+                });
+              } catch (e) {
+                // ignore malformed intent data
+              }
+            }
+            return;
+          }
+          target = target.parentElement;
+        }
+      });
+    })();
+  </script>
 </body>
 </html>`;
 }
@@ -97,22 +127,3 @@ function renderRegion(region: EditorViewerRegion): string {
   return `<button class="region" type="button" data-region-id="${escapeHtml(region.id)}" data-signal="${escapeHtml(region.signal)}" data-intent="${intent}" style="color:${cssColor(region.color)};${backgroundStyle}">${escapeHtml(region.text)}</button>`;
 }
 
-function cssColor(value: string | undefined): string {
-  const fallbackColor = "#ffffff";
-  const color = value || fallbackColor;
-
-  if (/^#(?:[0-9a-f]{3}|[0-9a-f]{4}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(color)) {
-    return color;
-  }
-
-  return fallbackColor;
-}
-
-function escapeHtml(value: unknown): string {
-  return String(value)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-}
