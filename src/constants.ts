@@ -14,11 +14,14 @@ export const COMMAND_IDS = {
   openBeforeAfterPreview: "colorCalibration.openBeforeAfterPreview",
   openCandidatePreview: "colorCalibration.openCandidatePreview",
   openEditorViewer: "colorCalibration.openEditorViewer",
+  applyCandidatePatch: "colorCalibration.applyCandidatePatch",
+  rollbackCandidatePatch: "colorCalibration.rollbackCandidatePatch",
   applyHardcodedPatch: "colorCalibration.applyHardcodedPatch",
   rollbackHardcodedPatch: "colorCalibration.rollbackHardcodedPatch"
 } as const;
 
 export const ROLLBACK_STATE_KEY = "colorCalibration.pocHardcodedPatch.rollbackSnapshot";
+export const CANDIDATE_ROLLBACK_STATE_KEY = "colorCalibration.candidatePatch.rollbackSnapshot";
 
 export const SETTING_IDS = {
   workbenchColorCustomizations: "workbench.colorCustomizations",

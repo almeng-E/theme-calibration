@@ -1,4 +1,4 @@
-﻿# Color Calibration
+# Color Calibration
 
 현재 사용 중인 VS Code/Cursor theme를 읽고, 코드 편집기에서 헷갈리거나 잘 보이지 않는 색상 신호를 점검하기 위한 extension입니다.
 
@@ -12,7 +12,7 @@ Color Calibration: Open Editor Viewer
 
 이 명령은 현재 theme를 읽고 syntax, diagnostics, diff 샘플을 Webview로 엽니다. 샘플 영역을 클릭하면 클릭한 색상과 진단 맥락을 바탕으로 관련 개선 후보를 만들고, 생성된 개선 후보는 편집기 뷰어의 solution panel(개선 후보 영역)에 표시됩니다. 처리 상태는 알림으로 안내합니다.
 
-아직 실제 `settings.json` 적용, apply, rollback은 candidate 기반 제품 흐름으로 연결되지 않았습니다.
+내부 검증용으로 candidate 기반 apply/rollback 명령이 추가되었으나, 아직 사용자 UI 흐름(public UI flow)에는 실제 설정 적용 제어가 노출되지 않았습니다.
 
 ## 개발 환경
 
@@ -40,8 +40,10 @@ npm test
 - `colorCalibration.printPatchCandidates`
 - `colorCalibration.openBeforeAfterPreview`
 - `colorCalibration.openCandidatePreview`
-- `colorCalibration.applyHardcodedPatch`
-- `colorCalibration.rollbackHardcodedPatch`
+- `colorCalibration.applyCandidatePatch`
+- `colorCalibration.rollbackCandidatePatch`
+- `colorCalibration.applyHardcodedPatch` (legacy/example)
+- `colorCalibration.rollbackHardcodedPatch` (legacy/example)
 
 ## 현재 상태
 
@@ -51,4 +53,4 @@ npm test
 - editor viewer model 생성
 - editor viewer Webview shell
 
-아직 candidate 기반 apply, 안전한 rollback, patch history는 제품용 흐름으로 연결되지 않았습니다.
+내부 검증용으로 candidate 기반 apply/rollback 명령이 추가되었으나, 아직 사용자 UI 흐름(public UI flow)에는 실제 설정 적용 제어가 노출되지 않았습니다.

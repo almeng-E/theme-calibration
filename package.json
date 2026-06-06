@@ -17,6 +17,8 @@
     "onCommand:colorCalibration.openBeforeAfterPreview",
     "onCommand:colorCalibration.openCandidatePreview",
     "onCommand:colorCalibration.openEditorViewer",
+    "onCommand:colorCalibration.applyCandidatePatch",
+    "onCommand:colorCalibration.rollbackCandidatePatch",
     "onCommand:colorCalibration.applyHardcodedPatch",
     "onCommand:colorCalibration.rollbackHardcodedPatch"
   ],
