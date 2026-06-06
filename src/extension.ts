@@ -1,4 +1,5 @@
 import * as vscode from "vscode";
+import * as crypto from "crypto";
 import { COMMAND_IDS, OUTPUT_CHANNEL_NAME, ROLLBACK_STATE_KEY } from "./constants";
 import { createEditorViewerModel } from "./core/editorViewerModel";
 import { renderEditorViewerHtml } from "./core/editorViewerRenderer";
@@ -170,11 +171,14 @@ async function handleOpenEditorViewer(output: vscode.OutputChannel): Promise<voi
   const probe = await collectThemeSnapshot(vscode, { includeThemeDefinitions: true });
   const report = createThemeSignalReport(probe);
   const viewerModel = createEditorViewerModel(report);
+  const nonce = crypto.randomBytes(16).toString("hex");
 
-  openHtmlPanel(
+  openEditorViewerPanel(
     "colorCalibrationEditorViewer",
     "Color Calibration Editor Viewer",
-    renderEditorViewerHtml(viewerModel)
+    renderEditorViewerHtml(viewerModel, nonce),
+    nonce,
+    output
   );
 
   output.appendLine(JSON.stringify({
@@ -269,7 +273,7 @@ function openHtmlPanel(viewType: string, title: string, html: string): void {
     title,
     vscode.ViewColumn.Beside,
     {
-      enableScripts: false,
+      enableScripts: true,
       retainContextWhenHidden: true
     }
   );
@@ -277,3 +281,29 @@ function openHtmlPanel(viewType: string, title: string, html: string): void {
   panel.webview.html = html;
 }
 
+function openEditorViewerPanel(
+  viewType: string,
+  title: string,
+  html: string,
+  nonce: string,
+  output: vscode.OutputChannel
+): void {
+  const panel = vscode.window.createWebviewPanel(
+    viewType,
+    title,
+    vscode.ViewColumn.Beside,
+    {
+      enableScripts: true,
+      retainContextWhenHidden: true
+    }
+  );
+
+  panel.webview.html = html;
+
+  panel.webview.onDidReceiveMessage((message) => {
+    if (message?.type === "regionClick" && message.intent) {
+      output.appendLine(`[Region Click] ${JSON.stringify(message.intent)}`);
+      console.log("[Color Calibration] Region clicked", message.intent);
+    }
+  });
+}
