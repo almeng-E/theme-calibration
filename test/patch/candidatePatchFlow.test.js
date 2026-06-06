@@ -71,6 +71,29 @@ test("candidate patch flow generates proposals, applies selected candidates, and
   assert.deepEqual(rolledBackSettings, existingSettings);
 });
 
+test("createCandidatePatchApplyPlan integrates successfully using externally provided candidates", () => {
+  const report = createCandidateRichReport();
+  const candidates = createPatchCandidates(report, [...LOW_CONTRAST_MAPPINGS, ...SIMILAR_SIGNAL_MAPPINGS]);
+  const existingSettings = createExistingSettings();
+
+  const applyPlan = createCandidatePatchApplyPlan({
+    report,
+    candidates,
+    selectedCandidateIds: [
+      "lowContrast-comment-editor.tokenColorCustomizations-comments"
+    ],
+    existingSettings,
+    now: new Date("2026-06-06T00:00:00.000Z")
+  });
+
+  assert.equal(applyPlan.selectedCandidates.length, 1);
+  assert.equal(applyPlan.patchPlan.recipeId, "patch-candidates-default-dark");
+  assert.equal(
+    applyPlan.patchPlan.nextSettings["editor.tokenColorCustomizations"]["[Default Dark+]"].comments,
+    "#8fb8ff"
+  );
+});
+
 function createCandidateRichReport() {
   return {
     generatedAt: "2026-06-06T00:00:00.000Z",

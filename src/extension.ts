@@ -209,6 +209,7 @@ async function handleApplyCandidatePatch(output: vscode.OutputChannel, context: 
   const existingSettings = readCurrentPatchableSettings(vscode, target);
   const applyPlan = createCandidatePatchApplyPlan({
     report,
+    candidates,
     selectedCandidateIds: selectedItems.map((item) => item.candidate.id),
     existingSettings
   });
