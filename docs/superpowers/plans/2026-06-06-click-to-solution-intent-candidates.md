@@ -18,6 +18,10 @@
   - intent signal에 맞는 candidate 필터링, 관련 risk 없음, 생성 가능한 candidate 없음을 검증한다.
 - Modify: `src/extension.ts`
   - Webview `regionClick` message를 `normalizeCalibrationIntentPayload`로 검증하고, `createIntentSolution` 결과를 Output Channel과 VS Code notification에 표시한다.
+- Create: `src/adapter/intentSolutionNotification.ts`
+  - Extension Host가 표시할 알림 level/message를 순수 함수로 만든다.
+- Create: `test/adapter/intentSolutionNotification.test.js`
+  - solution status별 사용자-facing 알림 문구 선택을 검증한다.
 - Modify: `README.md`
   - Editor Viewer 클릭이 현재는 solution candidate 생성까지 연결된다는 사용자 안내를 추가한다.
 
@@ -247,20 +251,130 @@ git commit -m ":sparkles: feat: 클릭 intent solution 후보 생성 추가"
 ## Task 2: Extension Host Integration
 
 **Files:**
+- Create: `src/adapter/intentSolutionNotification.ts`
+- Create: `test/adapter/intentSolutionNotification.test.js`
 - Modify: `src/extension.ts`
-- Test: existing `npm test`
+- Test: `test/adapter/intentSolutionNotification.test.js` and existing `npm test`
 
 - [ ] **Step 1: Write failing integration test through TypeScript compile**
 
-이 단계는 VS Code API message handler를 단위 테스트로 억지 mock하지 않는다. 대신 `extension.ts`에서 새 core API를 호출하도록 연결하고, `npm test`의 TypeScript compile이 integration contract를 검증하게 한다.
+VS Code API message handler를 단위 테스트로 억지 mock하지 않는다. 대신 알림 level/message 선택을 adapter 순수 함수로 분리하고 그 함수를 먼저 테스트한다.
+
+Create `test/adapter/intentSolutionNotification.test.js`.
+
+```javascript
+const test = require("node:test");
+const assert = require("node:assert/strict");
+const { createIntentSolutionNotification } = require("../../out/adapter/intentSolutionNotification");
+
+test("createIntentSolutionNotification creates info message for available candidates", () => {
+  const notification = createIntentSolutionNotification({
+    intent: { source: "viewerClick", signal: "comment", targetId: "syntax-comment", severity: "unspecified" },
+    status: "candidates",
+    risks: [{ type: "lowContrast", signal: "comment" }],
+    candidates: [
+      {
+        id: "candidate-1",
+        riskType: "lowContrast",
+        signals: ["comment"],
+        settingId: "editor.tokenColorCustomizations",
+        settingKey: "comments",
+        currentSignals: { comment: "#333333" },
+        suggestedColor: "#8fb8ff",
+        reason: "comment has low contrast.",
+        scope: "theme",
+        confidence: 0.8
+      }
+    ]
+  });
+
+  assert.deepEqual(notification, {
+    level: "info",
+    message: "Solution candidates: 1 for comment."
+  });
+});
+
+test("createIntentSolutionNotification creates info message when no risk matches", () => {
+  const notification = createIntentSolutionNotification({
+    intent: { source: "viewerClick", signal: "string", targetId: "syntax-string", severity: "unspecified" },
+    status: "noMatchingRisk",
+    risks: [],
+    candidates: []
+  });
+
+  assert.deepEqual(notification, {
+    level: "info",
+    message: "No obvious visibility risk found for string in the current simple rules."
+  });
+});
+
+test("createIntentSolutionNotification creates warning when risk has no candidate", () => {
+  const notification = createIntentSolutionNotification({
+    intent: { source: "viewerClick", signal: "diffDeleted", targetId: "diff-deleted", severity: "unspecified" },
+    status: "noCandidate",
+    risks: [{ type: "lowContrast", signal: "diffDeleted" }],
+    candidates: []
+  });
+
+  assert.deepEqual(notification, {
+    level: "warning",
+    message: "Visibility risk found for diffDeleted, but no conservative candidate is available yet."
+  });
+});
+```
+
+Run:
+
+```powershell
+& 'C:\nvm4w\nodejs\npm.cmd' test
+```
+
+Expected: FAIL with `Cannot find module '../../out/adapter/intentSolutionNotification'`.
 
 - [ ] **Step 2: Implement message handling**
+
+Create `src/adapter/intentSolutionNotification.ts`.
+
+```typescript
+import type { IntentSolution } from "../core/intentSolution";
+
+export type IntentSolutionNotificationLevel = "info" | "warning";
+
+export interface IntentSolutionNotification {
+  level: IntentSolutionNotificationLevel;
+  message: string;
+}
+
+export function createIntentSolutionNotification(solution: IntentSolution): IntentSolutionNotification {
+  if (solution.status === "candidates") {
+    return {
+      level: "info",
+      message: `Solution candidates: ${solution.candidates.length} for ${solution.intent.signal}.`
+    };
+  }
+
+  if (solution.status === "noMatchingRisk") {
+    return {
+      level: "info",
+      message: `No obvious visibility risk found for ${solution.intent.signal} in the current simple rules.`
+    };
+  }
+
+  return {
+    level: "warning",
+    message: `Visibility risk found for ${solution.intent.signal}, but no conservative candidate is available yet.`
+  };
+}
+```
+
+Then modify message handling in `src/extension.ts`.
 
 Modify imports in `src/extension.ts`.
 
 ```typescript
 import { normalizeCalibrationIntentPayload } from "./core/calibrationIntent";
 import { createIntentSolution } from "./core/intentSolution";
+import { createIntentSolutionNotification } from "./adapter/intentSolutionNotification";
 ```
 
 Update `handleOpenEditorViewer` so it passes `report` to the panel helper.
@@ -305,22 +419,15 @@ function openEditorViewerPanel(
     try {
       const intent = normalizeCalibrationIntentPayload(message.intent);
       const solution = createIntentSolution(report, intent);
+      const notification = createIntentSolutionNotification(solution);
 
       output.appendLine(`[Region Click] ${JSON.stringify({ intent, solution }, null, 2)}`);
       console.log("[Color Calibration] Region click solution", solution);
 
-      if (solution.status === "candidates") {
-        vscode.window.showInformationMessage(
-          `Solution candidates: ${solution.candidates.length} for ${intent.signal}.`
-        );
-      } else if (solution.status === "noMatchingRisk") {
-        vscode.window.showInformationMessage(
-          `No obvious visibility risk found for ${intent.signal} in the current simple rules.`
-        );
+      if (notification.level === "info") {
+        vscode.window.showInformationMessage(notification.message);
       } else {
-        vscode.window.showWarningMessage(
-          `Visibility risk found for ${intent.signal}, but no conservative candidate is available yet.`
-        );
+        vscode.window.showWarningMessage(notification.message);
       }
     } catch (error) {
       const errorMessage = getErrorMessage(error);
