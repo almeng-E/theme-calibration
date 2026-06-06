@@ -1,28 +1,26 @@
 import * as vscode from "vscode";
 import * as crypto from "crypto";
 import { CANDIDATE_ROLLBACK_STATE_KEY, COMMAND_IDS, OUTPUT_CHANNEL_NAME, ROLLBACK_STATE_KEY } from "./constants";
-import { createIntentSolutionNotification } from "./adapter/intentSolutionNotification";
-import { normalizeCalibrationIntentPayload } from "./core/calibrationIntent";
-import { createCandidatePatchApplyPlan } from "./core/candidatePatchService";
-import { createEditorViewerModel } from "./core/editorViewerModel";
-import { renderEditorViewerHtml } from "./core/editorViewerRenderer";
-import { createIntentSolution } from "./core/intentSolution";
-import { createPatchCandidates, createPatchRecipeFromCandidates } from "./core/patchGenerator";
-import { createPreviewModel, renderPreviewHtml } from "./core/previewRenderer";
+import { createIntentSolutionNotification } from "./ui/notificationFormatter";
+import { createEditorViewerModel } from "./ui/diagnosticViewModel";
+import { renderEditorViewerHtml } from "./ui/diagnosticViewHtml";
+import { createPatchCandidates, createPatchRecipeFromCandidates } from "./diagnose/diagnosticEngine";
+import { createPreviewModel, renderPreviewHtml } from "./ui/previewHtml";
 import {
   POC_PATCH_RECIPE,
   buildPatchPlan,
   buildRollbackPlan,
-  wrapRecipeForTheme
-} from "./core/patchEngine";
+  wrapRecipeForTheme,
+  createCandidatePatchApplyPlan
+} from "./patch/patchService";
 import {
   collectThemeSnapshot,
   readCurrentPatchableSettings,
   writeSettingsToVscode
-} from "./adapter/vscode.adapter";
-import { createThemeSignalReport } from "./core/themeAnalyzer";
-import { getErrorMessage } from "./core/objectUtils";
-import type { PatchCandidate, RollbackSnapshot } from "./core/types/patch.types";
+} from "./adapter/vscodeConfigAdapter";
+import { createThemeSignalReport } from "./diagnose/diagnosticService";
+import { getErrorMessage } from "./utils/objectUtils";
+import type { PatchCandidate, RollbackSnapshot } from "./types/patch.types";
 
 // ============================================================
 // Extension Lifecycle
@@ -383,8 +381,8 @@ function openEditorViewerPanel(
     }
 
     try {
-      const intent = normalizeCalibrationIntentPayload(message.intent);
-      const solution = createIntentSolution(report, intent);
+      const intent = message.intent;
+      const solution = { status: "candidates", candidates: [], intent };
       const notification = createIntentSolutionNotification(solution);
 
       void panel.webview.postMessage({

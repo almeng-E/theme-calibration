@@ -2,8 +2,8 @@
 
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { createEditorViewerModel } = require("../../out/core/editorViewerModel");
-const { renderEditorViewerHtml } = require("../../out/core/editorViewerRenderer");
+const { createEditorViewerModel } = require("../../out/ui/diagnosticViewModel");
+const { renderEditorViewerHtml } = require("../../out/ui/diagnosticViewHtml");
 
 test("renderEditorViewerHtml renders samples and clickable regions", () => {
   const html = renderEditorViewerHtml(createEditorViewerModel(createFakeReport("Sample Dark")));

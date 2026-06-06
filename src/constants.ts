@@ -1,4 +1,4 @@
-import type { TargetSettingId } from "./core/types/patch.types";
+import type { TargetSettingId } from "./types/patch.types";
 
 export interface SettingDescriptor {
   section: string;

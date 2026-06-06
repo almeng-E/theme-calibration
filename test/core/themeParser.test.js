@@ -7,10 +7,10 @@ const {
   parseJsonc,
   resolveRelativeThemePath,
   isMatchingThemeName
-} = require("../../out/core/themeParser");
+} = require("../../out/parser/themeDefinitionLoader");
 const {
   collectThemeSnapshot
-} = require("../../out/adapter/vscode.adapter");
+} = require("../../out/adapter/vscodeConfigAdapter");
 
 test("parseJsonc removes comments and trailing commas while preserving strings", () => {
   const parsed = parseJsonc(`{

@@ -1,18 +1,17 @@
 import { SETTINGS_ORDER } from "../constants";
 import type {
   ConfigurationSnapshot,
-  ConfigurationUpdate,
   PatchExecutionPlan,
   PatchRecipe,
   RollbackExecutionPlan,
   RollbackSnapshot,
   SettingDictionary
-} from "./types/patch.types";
-import { isPlainObject, clonePlainSetting, createEmptySettingsSnapshot } from "./objectUtils";
-
-// ============================================================
-// 1. Constants
-// ============================================================
+} from "../types/patch.types";
+import { isPlainObject, clonePlainSetting, createEmptySettingsSnapshot } from "../utils/objectUtils";
+import { serializeSettingsUpdates } from "../serializer/vscode.serializer";
+import type { ThemeAnalysisReport } from "../types/signal.types";
+import type { PatchCandidate } from "../types/patch.types";
+import { createPatchCandidates, createPatchRecipeFromCandidates } from "../diagnose/diagnosticEngine";
 
 export const POC_PATCH_RECIPE: PatchRecipe = {
   id: "poc-hardcoded-contrast-v1",
@@ -30,10 +29,6 @@ export const POC_PATCH_RECIPE: PatchRecipe = {
     "editor.semanticTokenColorCustomizations": {}
   }
 };
-
-// ============================================================
-// 2. High-level Builders
-// ============================================================
 
 export function buildPatchPlan(
   existingSettings: ConfigurationSnapshot,
@@ -59,7 +54,7 @@ export function buildPatchPlan(
       recipeId: patchRecipe.id,
       settings: rollbackSettings
     },
-    settingsUpdates: toSettingWriteOps(nextSettings)
+    settingsUpdates: serializeSettingsUpdates(nextSettings)
   };
 }
 
@@ -71,13 +66,9 @@ export function buildRollbackPlan(rollbackSnapshot: RollbackSnapshot | undefined
   return {
     recipeId: rollbackSnapshot.recipeId,
     createdAt: rollbackSnapshot.createdAt,
-    settingsUpdates: toSettingWriteOps(rollbackSnapshot.settings)
+    settingsUpdates: serializeSettingsUpdates(rollbackSnapshot.settings)
   };
 }
-
-// ============================================================
-// 3. Recipe Helpers
-// ============================================================
 
 export function wrapRecipeForTheme(
   themeName: string | undefined,
@@ -98,22 +89,6 @@ export function wrapRecipeForTheme(
   };
 }
 
-// ============================================================
-// 4. Transformation Utilities
-// ============================================================
-
-export function toSettingWriteOps(settingsById: ConfigurationSnapshot): ConfigurationUpdate[] {
-  return SETTINGS_ORDER.map((settingId) => {
-    const [section, ...keyParts] = settingId.split(".");
-
-    return {
-      section,
-      key: keyParts.join("."),
-      value: clonePlainSetting(settingsById[settingId])
-    };
-  });
-}
-
 function mergePlainObjects(base: SettingDictionary, override: SettingDictionary): SettingDictionary {
   const baseClone = clonePlainSetting(base);
   const overrideClone = clonePlainSetting(override);
@@ -127,4 +102,46 @@ function mergePlainObjects(base: SettingDictionary, override: SettingDictionary)
   }
 
   return baseClone;
+}
+
+export interface CandidatePatchApplyPlanInput {
+  report: ThemeAnalysisReport;
+  selectedCandidateIds: readonly string[];
+  existingSettings: ConfigurationSnapshot;
+  now?: Date;
+}
+
+export interface CandidatePatchApplyPlan {
+  candidates: PatchCandidate[];
+  selectedCandidates: PatchCandidate[];
+  patchPlan: PatchExecutionPlan;
+}
+
+export function createCandidatePatchApplyPlan(input: CandidatePatchApplyPlanInput): CandidatePatchApplyPlan {
+  const candidates = createPatchCandidates(input.report);
+
+  if (candidates.length === 0) {
+    throw new Error("No patch candidates were generated for the current theme.");
+  }
+
+  if (input.selectedCandidateIds.length === 0) {
+    throw new Error("No patch candidates were selected.");
+  }
+
+  const selectedCandidates = input.selectedCandidateIds
+    .map((id) => candidates.find((candidate) => candidate.id === id))
+    .filter((c): c is PatchCandidate => c !== undefined);
+
+  if (selectedCandidates.length !== input.selectedCandidateIds.length) {
+    throw new Error("Some selected candidates were not found.");
+  }
+
+  const patchRecipe = createPatchRecipeFromCandidates(selectedCandidates, input.report.theme.configuredName);
+  const patchPlan = buildPatchPlan(input.existingSettings, patchRecipe, input.now);
+
+  return {
+    candidates,
+    selectedCandidates,
+    patchPlan
+  };
 }

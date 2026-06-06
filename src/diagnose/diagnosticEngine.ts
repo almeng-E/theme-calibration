@@ -5,13 +5,13 @@ import type {
   PatchRecipe,
   SettingDictionary,
   TargetSettingId
-} from "./types/patch.types";
+} from "../types/patch.types";
 import type {
   ColorSignalRole,
   ThemeAnalysisReport,
   VisibilityRisk
-} from "./types/signal.types";
-import { isPlainObject, createEmptySettingsSnapshot } from "./objectUtils";
+} from "../types/signal.types";
+import { isPlainObject, createEmptySettingsSnapshot } from "../utils/objectUtils";
 
 // ============================================================
 // 1. Constants & Mappings

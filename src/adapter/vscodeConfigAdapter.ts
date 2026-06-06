@@ -1,7 +1,7 @@
 import { TextDecoder } from "node:util";
 import { COLOR_CUSTOMIZATION_SETTINGS, SETTINGS_ORDER } from "../constants";
-import type { ThemeEnvironment } from "../core/types/theme.types";
-import type { ConfigurationSnapshot, ConfigurationUpdate, SettingDictionary } from "../core/types/patch.types";
+import type { ThemeEnvironment } from "../types/theme.types";
+import type { ConfigurationSnapshot, ConfigurationUpdate, SettingDictionary } from "../types/patch.types";
 import type {
   ThemeCollectionOptions,
   ThemeFileReader,
@@ -9,8 +9,8 @@ import type {
   VscodeReadApis,
   VscodeSettingsApis
 } from "./vscode.types";
-import { collectInstalledThemes, isMatchingThemeName } from "../core/themeParser";
-import { normalizeThemePath, clonePlainSetting } from "../core/objectUtils";
+import { collectInstalledThemes, isMatchingThemeName } from "../parser/themeDefinitionLoader";
+import { normalizeThemePath, clonePlainSetting } from "../utils/objectUtils";
 
 export async function collectThemeSnapshot(
   vscode: VscodeReadApis,

@@ -5,11 +5,11 @@ const assert = require("node:assert/strict");
 const {
   createPatchCandidates,
   createPatchRecipeFromCandidates
-} = require("../../out/core/patchGenerator");
+} = require("../../out/diagnose/diagnosticEngine");
 const {
   buildPatchPlan,
   buildRollbackPlan
-} = require("../../out/core/patchEngine");
+} = require("../../out/patch/patchService");
 
 test("candidate patch flow generates proposals, applies selected candidates, and rolls back", () => {
   const report = createCandidateRichReport();

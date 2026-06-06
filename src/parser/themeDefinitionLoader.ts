@@ -7,13 +7,13 @@ import type {
   ThemeRegistration,
   ThemeRegistrationSummary,
   TokenColorRule
-} from "./types/theme.types";
+} from "../types/theme.types";
 import type {
   ThemeCollectionOptions,
   ThemeFileReader,
   VscodeExtensionInfo
 } from "../adapter/vscode.types";
-import { isPlainObject, normalizeThemePath, getErrorMessage } from "./objectUtils";
+import { isPlainObject, normalizeThemePath, getErrorMessage } from "../utils/objectUtils";
 
 // ============================================================
 // 1. Core API (Entry points)

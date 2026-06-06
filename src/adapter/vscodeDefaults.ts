@@ -7,7 +7,7 @@ import type {
   ColorHexMap,
   ColorSignalMap,
   ColorSignalRole
-} from "./types/signal.types";
+} from "../types/signal.types";
 
 /**
  * VS Code Dark+ 기준 signal 기본값.
