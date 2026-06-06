@@ -2,7 +2,7 @@
 
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { POC_PATCH_RECIPE } = require("../fixtures/patch.fixtures.js");
+const { SAMPLE_PATCH_RECIPE } = require("../fixtures/patch.fixtures.js");
 const {
   createPreviewModel,
   renderPreviewHtml
@@ -11,7 +11,7 @@ const {
 test("createPreviewModel applies hardcoded patch colors to after signals only", () => {
   const report = createFakeReport("Sample Dark");
 
-  const model = createPreviewModel(report, POC_PATCH_RECIPE);
+  const model = createPreviewModel(report, SAMPLE_PATCH_RECIPE);
 
   assert.equal(model.themeName, "Sample Dark");
   assert.equal(model.before.signals.error, "#f44747");
@@ -77,7 +77,7 @@ test("createPreviewModel applies workbench candidate patches to after diffDelete
 
 test("renderPreviewHtml renders before and after panes and escapes theme text", () => {
   const report = createFakeReport("Dark <script>alert(1)</script>");
-  const model = createPreviewModel(report, POC_PATCH_RECIPE);
+  const model = createPreviewModel(report, SAMPLE_PATCH_RECIPE);
 
   const html = renderPreviewHtml(model);
 

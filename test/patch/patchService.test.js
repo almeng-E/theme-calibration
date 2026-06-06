@@ -7,9 +7,9 @@ const {
   buildRollbackPlan,
   wrapRecipeForTheme
 } = require("../../out/patch/patchService");
-const { POC_PATCH_RECIPE } = require("../fixtures/patch.fixtures.js");
+const { SAMPLE_PATCH_RECIPE } = require("../fixtures/patch.fixtures.js");
 
-test("buildPatchPlan preserves existing overrides while applying PoC patch values", () => {
+test("buildPatchPlan preserves existing overrides while applying sample patch values", () => {
   const existingSettings = {
     "workbench.colorCustomizations": {
       "editor.background": "#111111",
@@ -23,7 +23,7 @@ test("buildPatchPlan preserves existing overrides while applying PoC patch value
     }
   };
 
-  const plan = buildPatchPlan(existingSettings, POC_PATCH_RECIPE);
+  const plan = buildPatchPlan(existingSettings, SAMPLE_PATCH_RECIPE);
 
   assert.equal(plan.settingsUpdates.length, 3);
   assert.equal(
@@ -32,7 +32,7 @@ test("buildPatchPlan preserves existing overrides while applying PoC patch value
   );
   assert.equal(
     plan.nextSettings["workbench.colorCustomizations"]["editorError.foreground"],
-    POC_PATCH_RECIPE.settings["workbench.colorCustomizations"]["editorError.foreground"]
+    SAMPLE_PATCH_RECIPE.settings["workbench.colorCustomizations"]["editorError.foreground"]
   );
   assert.deepEqual(
     plan.rollbackSnapshot.settings["workbench.colorCustomizations"],
@@ -43,7 +43,7 @@ test("buildPatchPlan preserves existing overrides while applying PoC patch value
 test("buildRollbackPlan restores exactly the settings captured in the snapshot", () => {
   const snapshot = {
     createdAt: "2026-06-04T00:00:00.000Z",
-    recipeId: "poc-hardcoded-contrast-v1",
+    recipeId: "sample-hardcoded-contrast-v1",
     settings: {
       "workbench.colorCustomizations": {
         "editor.background": "#111111"
@@ -77,12 +77,12 @@ test("buildRollbackPlan restores exactly the settings captured in the snapshot",
 });
 
 test("wrapRecipeForTheme scopes workbench colors to the configured theme", () => {
-  const recipe = wrapRecipeForTheme("Default Dark+", POC_PATCH_RECIPE);
+  const recipe = wrapRecipeForTheme("Default Dark+", SAMPLE_PATCH_RECIPE);
 
   assert.ok(recipe.settings["workbench.colorCustomizations"]["[Default Dark+]"]);
   assert.equal(
     recipe.settings["workbench.colorCustomizations"]["[Default Dark+]"]["editorError.foreground"],
-    POC_PATCH_RECIPE.settings["workbench.colorCustomizations"]["editorError.foreground"]
+    SAMPLE_PATCH_RECIPE.settings["workbench.colorCustomizations"]["editorError.foreground"]
   );
 });
 
@@ -96,7 +96,7 @@ test("buildPatchPlan preserves existing values inside a theme-specific customiza
     "editor.tokenColorCustomizations": {},
     "editor.semanticTokenColorCustomizations": {}
   };
-  const recipe = wrapRecipeForTheme("Default Dark+", POC_PATCH_RECIPE);
+  const recipe = wrapRecipeForTheme("Default Dark+", SAMPLE_PATCH_RECIPE);
 
   const plan = buildPatchPlan(existingSettings, recipe);
 
@@ -106,6 +106,6 @@ test("buildPatchPlan preserves existing values inside a theme-specific customiza
   );
   assert.equal(
     plan.nextSettings["workbench.colorCustomizations"]["[Default Dark+]"]["editorError.foreground"],
-    POC_PATCH_RECIPE.settings["workbench.colorCustomizations"]["editorError.foreground"]
+    SAMPLE_PATCH_RECIPE.settings["workbench.colorCustomizations"]["editorError.foreground"]
   );
 });
