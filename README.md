@@ -10,7 +10,9 @@ Command Palette에서는 아래 명령 하나만 실행하면 됩니다.
 Color Calibration: Open Editor Viewer
 ```
 
-이 명령은 현재 theme를 읽고 syntax, diagnostics, diff 샘플을 Webview로 엽니다. 각 샘플 영역은 이후 click-to-solution 흐름에서 사용할 수 있도록 내부 intent 정보를 포함합니다.
+이 명령은 현재 theme를 읽고 syntax, diagnostics, diff 샘플을 Webview로 엽니다. 샘플 영역을 클릭하면 Webview가 클릭 맥락을 담은 `CalibrationIntent`를 Extension Host로 전달합니다. Extension Host는 현재 theme risk를 기준으로 관련 solution candidate를 생성하고, 생성 결과를 상태 알림으로 표시합니다.
+
+아직 실제 `settings.json` 적용, apply, rollback은 candidate 기반 제품 흐름으로 연결되지 않았습니다.
 
 ## 개발 환경
 
