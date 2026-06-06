@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 import * as crypto from "crypto";
-import { CANDIDATE_ROLLBACK_STATE_KEY, COMMAND_IDS, OUTPUT_CHANNEL_NAME, ROLLBACK_STATE_KEY } from "./constants";
+import { CANDIDATE_ROLLBACK_STATE_KEY, COMMAND_IDS, OUTPUT_CHANNEL_NAME } from "./constants";
 import { createIntentSolutionNotification } from "./ui/notificationFormatter";
 import { createEditorViewerModel } from "./ui/diagnosticViewModel";
 import { renderEditorViewerHtml } from "./ui/diagnosticViewHtml";

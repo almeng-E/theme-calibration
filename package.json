@@ -1,7 +1,7 @@
 {
   "name": "color-calibration-extension",
   "displayName": "Color Calibration Theme Probe",
-  "description": "VS Code/Cursor theme detection PoC for the color calibration MVP.",
+  "description": "Color Calibration Extension for VS Code and Cursor.",
   "version": "0.0.1",
   "publisher": "local-poc",
   "engines": {
@@ -14,13 +14,10 @@
     "onCommand:colorCalibration.printThemeProbe",
     "onCommand:colorCalibration.printThemeSignalReport",
     "onCommand:colorCalibration.printPatchCandidates",
-    "onCommand:colorCalibration.openBeforeAfterPreview",
     "onCommand:colorCalibration.openCandidatePreview",
     "onCommand:colorCalibration.openEditorViewer",
     "onCommand:colorCalibration.applyCandidatePatch",
-    "onCommand:colorCalibration.rollbackCandidatePatch",
-    "onCommand:colorCalibration.applyHardcodedPatch",
-    "onCommand:colorCalibration.rollbackHardcodedPatch"
+    "onCommand:colorCalibration.rollbackCandidatePatch"
   ],
   "main": "./out/extension.js",
   "contributes": {
