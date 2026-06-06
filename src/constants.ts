@@ -13,6 +13,7 @@ export const COMMAND_IDS = {
   printPatchCandidates: "colorCalibration.printPatchCandidates",
   openBeforeAfterPreview: "colorCalibration.openBeforeAfterPreview",
   openCandidatePreview: "colorCalibration.openCandidatePreview",
+  openEditorViewer: "colorCalibration.openEditorViewer",
   applyHardcodedPatch: "colorCalibration.applyHardcodedPatch",
   rollbackHardcodedPatch: "colorCalibration.rollbackHardcodedPatch"
 } as const;
