@@ -1,8 +1,11 @@
 import * as vscode from "vscode";
 import * as crypto from "crypto";
 import { COMMAND_IDS, OUTPUT_CHANNEL_NAME, ROLLBACK_STATE_KEY } from "./constants";
+import { createIntentSolutionNotification } from "./adapter/intentSolutionNotification";
+import { normalizeCalibrationIntentPayload } from "./core/calibrationIntent";
 import { createEditorViewerModel } from "./core/editorViewerModel";
 import { renderEditorViewerHtml } from "./core/editorViewerRenderer";
+import { createIntentSolution } from "./core/intentSolution";
 import { createPatchCandidates, createPatchRecipeFromCandidates } from "./core/patchGenerator";
 import { createPreviewModel, renderPreviewHtml } from "./core/previewRenderer";
 import {
@@ -177,8 +180,8 @@ async function handleOpenEditorViewer(output: vscode.OutputChannel): Promise<voi
     "colorCalibrationEditorViewer",
     "Color Calibration Editor Viewer",
     renderEditorViewerHtml(viewerModel, nonce),
-    nonce,
-    output
+    output,
+    report
   );
 
   output.appendLine(JSON.stringify({
@@ -285,8 +288,8 @@ function openEditorViewerPanel(
   viewType: string,
   title: string,
   html: string,
-  nonce: string,
-  output: vscode.OutputChannel
+  output: vscode.OutputChannel,
+  report: ReturnType<typeof createThemeSignalReport>
 ): void {
   const panel = vscode.window.createWebviewPanel(
     viewType,
@@ -301,9 +304,27 @@ function openEditorViewerPanel(
   panel.webview.html = html;
 
   panel.webview.onDidReceiveMessage((message) => {
-    if (message?.type === "regionClick" && message.intent) {
-      output.appendLine(`[Region Click] ${JSON.stringify(message.intent)}`);
-      console.log("[Color Calibration] Region clicked", message.intent);
+    if (message?.type !== "regionClick") {
+      return;
+    }
+
+    try {
+      const intent = normalizeCalibrationIntentPayload(message.intent);
+      const solution = createIntentSolution(report, intent);
+      const notification = createIntentSolutionNotification(solution);
+
+      output.appendLine(`[Region Click] ${JSON.stringify({ intent, solution }, null, 2)}`);
+      console.log("[Color Calibration] Region click solution", solution);
+
+      if (notification.level === "info") {
+        vscode.window.showInformationMessage(notification.message);
+      } else {
+        vscode.window.showWarningMessage(notification.message);
+      }
+    } catch (error) {
+      const errorMessage = getErrorMessage(error);
+      output.appendLine(`[Region Click] invalid intent: ${errorMessage}`);
+      vscode.window.showWarningMessage(`Invalid editor viewer click payload: ${errorMessage}`);
     }
   });
 }
