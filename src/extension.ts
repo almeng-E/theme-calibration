@@ -1,8 +1,9 @@
 import * as vscode from "vscode";
 import * as crypto from "crypto";
-import { COMMAND_IDS, OUTPUT_CHANNEL_NAME, ROLLBACK_STATE_KEY } from "./constants";
+import { CANDIDATE_ROLLBACK_STATE_KEY, COMMAND_IDS, OUTPUT_CHANNEL_NAME, ROLLBACK_STATE_KEY } from "./constants";
 import { createIntentSolutionNotification } from "./adapter/intentSolutionNotification";
 import { normalizeCalibrationIntentPayload } from "./core/calibrationIntent";
+import { createCandidatePatchApplyPlan } from "./core/candidatePatchService";
 import { createEditorViewerModel } from "./core/editorViewerModel";
 import { renderEditorViewerHtml } from "./core/editorViewerRenderer";
 import { createIntentSolution } from "./core/intentSolution";
@@ -38,6 +39,8 @@ export function activate(context: vscode.ExtensionContext): void {
     registerCommand(output, COMMAND_IDS.openBeforeAfterPreview, "Before/after preview", handleOpenBeforeAfterPreview),
     registerCommand(output, COMMAND_IDS.openCandidatePreview, "Candidate preview", handleOpenCandidatePreview),
     registerCommand(output, COMMAND_IDS.openEditorViewer, "Editor viewer", handleOpenEditorViewer),
+    registerCommand(output, COMMAND_IDS.applyCandidatePatch, "Candidate patch apply", (out) => handleApplyCandidatePatch(out, context)),
+    registerCommand(output, COMMAND_IDS.rollbackCandidatePatch, "Candidate patch rollback", (out) => handleRollbackCandidatePatch(out, context)),
     registerCommand(output, COMMAND_IDS.applyHardcodedPatch, "Hardcoded patch apply", (out) => handleApplyPatch(out, context)),
     registerCommand(output, COMMAND_IDS.rollbackHardcodedPatch, "Hardcoded patch rollback", (out) => handleRollbackPatch(out, context))
   );
@@ -221,6 +224,52 @@ async function handleApplyPatch(output: vscode.OutputChannel, context: vscode.Ex
   );
 }
 
+async function handleApplyCandidatePatch(output: vscode.OutputChannel, context: vscode.ExtensionContext): Promise<void> {
+  const target = vscode.ConfigurationTarget.Global;
+  const probe = await collectThemeSnapshot(vscode, { includeThemeDefinitions: true });
+  const report = createThemeSignalReport(probe);
+  const candidates = createPatchCandidates(report);
+
+  if (candidates.length === 0) {
+    output.appendLine("Candidate patch apply skipped: no-candidates.");
+    vscode.window.showWarningMessage("No patch candidates were generated for the current theme.");
+    return;
+  }
+
+  const selectedItems = await vscode.window.showQuickPick(
+    candidates.map(toCandidateQuickPickItem),
+    {
+      canPickMany: true,
+      title: "Color Calibration: Apply Candidate Patch",
+      placeHolder: "Select one or more candidates to apply to the current theme."
+    }
+  );
+
+  if (!selectedItems || selectedItems.length === 0) {
+    output.appendLine("Candidate patch apply cancelled.");
+    return;
+  }
+
+  const existingSettings = readCurrentPatchableSettings(vscode, target);
+  const applyPlan = createCandidatePatchApplyPlan({
+    report,
+    selectedCandidateIds: selectedItems.map((item) => item.candidate.id),
+    existingSettings
+  });
+
+  await writeSettingsToVscode(vscode, applyPlan.patchPlan.settingsUpdates, target);
+  await context.globalState.update(CANDIDATE_ROLLBACK_STATE_KEY, applyPlan.patchPlan.rollbackSnapshot);
+
+  output.appendLine(JSON.stringify({
+    themeName: report.theme.configuredName,
+    selectedCandidateIds: applyPlan.selectedCandidates.map((candidate) => candidate.id),
+    settingsUpdates: applyPlan.patchPlan.settingsUpdates,
+    rollbackStateKey: CANDIDATE_ROLLBACK_STATE_KEY
+  }, null, 2));
+  console.log("[Color Calibration] Candidate patch applied", applyPlan);
+  vscode.window.showInformationMessage(`Applied ${applyPlan.selectedCandidates.length} candidate patch(es).`);
+}
+
 async function handleRollbackPatch(output: vscode.OutputChannel, context: vscode.ExtensionContext): Promise<void> {
   const rollbackSnapshot = context.globalState.get<RollbackSnapshot>(ROLLBACK_STATE_KEY);
 
@@ -243,6 +292,31 @@ async function handleRollbackPatch(output: vscode.OutputChannel, context: vscode
   }, null, 2));
   console.log("[Color Calibration] Hardcoded patch rolled back", rollbackPlan);
   vscode.window.showInformationMessage(`Hardcoded theme patch rolled back for ${rollbackPlan.recipeId}.`);
+}
+
+async function handleRollbackCandidatePatch(output: vscode.OutputChannel, context: vscode.ExtensionContext): Promise<void> {
+  const rollbackSnapshot = context.globalState.get<RollbackSnapshot>(CANDIDATE_ROLLBACK_STATE_KEY);
+
+  if (!rollbackSnapshot) {
+    output.appendLine("No candidate rollback snapshot found.");
+    vscode.window.showWarningMessage("No candidate patch rollback snapshot found.");
+    return;
+  }
+
+  output.appendLine("Restoring candidate patch settings...");
+  const rollbackPlan = buildRollbackPlan(rollbackSnapshot);
+
+  await writeSettingsToVscode(vscode, rollbackPlan.settingsUpdates, vscode.ConfigurationTarget.Global);
+  await context.globalState.update(CANDIDATE_ROLLBACK_STATE_KEY, undefined);
+
+  output.appendLine(JSON.stringify({
+    restoredRecipe: rollbackPlan.recipeId,
+    restoredFrom: rollbackPlan.createdAt,
+    settingsUpdates: rollbackPlan.settingsUpdates,
+    rollbackStateKey: CANDIDATE_ROLLBACK_STATE_KEY
+  }, null, 2));
+  console.log("[Color Calibration] Candidate patch rolled back", rollbackPlan);
+  vscode.window.showInformationMessage(`Candidate theme patch rolled back for ${rollbackPlan.recipeId}.`);
 }
 
 // ============================================================

@@ -25,5 +25,7 @@ test("package manifest keeps internal commands activatable for development use",
   assert.ok(activationEvents.has("onCommand:colorCalibration.openCandidatePreview"));
   assert.ok(activationEvents.has("onCommand:colorCalibration.applyHardcodedPatch"));
   assert.ok(activationEvents.has("onCommand:colorCalibration.rollbackHardcodedPatch"));
+  assert.ok(activationEvents.has("onCommand:colorCalibration.applyCandidatePatch"));
+  assert.ok(activationEvents.has("onCommand:colorCalibration.rollbackCandidatePatch"));
   assert.ok(activationEvents.has("onCommand:colorCalibration.openEditorViewer"));
 });
