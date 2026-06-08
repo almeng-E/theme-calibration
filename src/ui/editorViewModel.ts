@@ -22,10 +22,15 @@ import {
 
 
 
+import type { PatchCandidate } from "../types/patch.types";
+
 export function createEditorViewerModel(
-  report: Partial<ThemeAnalysisReport> | undefined
+  report: Partial<ThemeAnalysisReport> | undefined,
+  afterSignalsMap?: ColorHexMap,
+  initialCandidates?: PatchCandidate[]
 ): EditorViewerModel {
   const signals = normalizeReportSignals(report?.signals);
+  const afterSignals = afterSignalsMap || signals;
 
   return {
     themeName: report?.theme?.configuredName || "Unknown Theme",
@@ -37,7 +42,15 @@ export function createEditorViewerModel(
       createHtmlSample(signals),
       createDiagnosticSample(signals),
       createDiffSample(signals)
-    ]
+    ],
+    afterSamples: [
+      createPythonSample(afterSignals),
+      createTypeScriptSample(afterSignals),
+      createHtmlSample(afterSignals),
+      createDiagnosticSample(afterSignals),
+      createDiffSample(afterSignals)
+    ],
+    initialCandidates
   };
 }
 
