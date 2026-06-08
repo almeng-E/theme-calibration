@@ -115,7 +115,10 @@ export function renderEditorViewerHtml(model: EditorViewerModel, nonce?: string)
     .editor {
       margin: 0;
       padding: 12px;
-      font: 13px/1.55 Consolas, "Courier New", monospace;
+      font-family: var(--vscode-editor-font-family, Consolas, "Courier New", monospace);
+      font-size: var(--vscode-editor-font-size, 13px);
+      font-weight: var(--vscode-editor-font-weight, normal);
+      line-height: var(--vscode-editor-line-height, 1.55);
       white-space: pre-wrap;
     }
     .line {
@@ -124,7 +127,8 @@ export function renderEditorViewerHtml(model: EditorViewerModel, nonce?: string)
     }
     .region {
       border: 0;
-      padding: 1px 2px;
+      padding: 0;
+      background: transparent;
       border-radius: 3px;
       font: inherit;
       text-align: left;
