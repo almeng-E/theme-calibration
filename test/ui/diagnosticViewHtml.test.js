@@ -50,6 +50,14 @@ test("renderEditorViewerHtml listens for solution result messages", () => {
   assert.match(html, /candidate\.suggestedColor/);
 });
 
+test("renderEditorViewerHtml renders Apply button wiring for solution candidates", () => {
+  const html = renderEditorViewerHtml(createEditorViewerModel(createFakeReport("Sample Dark")), "testnonce");
+
+  assert.match(html, /button\.textContent = "Apply"/);
+  assert.match(html, /type: "applyCandidatePatch"/);
+  assert.match(html, /candidateId: candidate\.id/);
+});
+
 test("renderEditorViewerHtml falls back unsafe css color values", () => {
   const model = createEditorViewerModel(createFakeReport("Sample Dark"));
   const firstSample = model.samples[0];

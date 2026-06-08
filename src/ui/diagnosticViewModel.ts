@@ -4,6 +4,7 @@ import type {
   ThemeAnalysisReport
 } from "../types/signal.types";
 import type {
+  CalibrationIntent,
   EditorViewerLine,
   EditorViewerModel,
   EditorViewerRegion,
@@ -117,6 +118,15 @@ function createRegion(
   color: string,
   backgroundColor?: string
 ): EditorViewerRegion {
+  const intent: CalibrationIntent = {
+    source: "viewerClick",
+    signal,
+    sampleId,
+    targetId: id,
+    severity: "unspecified",
+    message: `${label} visibility needs review.`
+  };
+
   return {
     id,
     label,
@@ -124,14 +134,7 @@ function createRegion(
     text,
     color,
     ...(backgroundColor ? { backgroundColor } : {}),
-    intent: {
-      source: "viewerClick",
-      signal,
-      sampleId,
-      targetId: id,
-      severity: "unspecified",
-      message: `${label} visibility needs review.`
-    }
+    intent
   };
 }
 

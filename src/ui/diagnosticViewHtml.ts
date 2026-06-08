@@ -77,6 +77,21 @@ export function renderEditorViewerHtml(model: EditorViewerModel, nonce?: string)
       color: #9aa4b2;
       font-size: 12px;
     }
+    .candidate-actions {
+      margin-top: 10px;
+    }
+    .candidate-apply {
+      border: 1px solid #4a5568;
+      border-radius: 6px;
+      background: #273142;
+      color: #f2f4f8;
+      padding: 6px 10px;
+      font: inherit;
+      cursor: pointer;
+    }
+    .candidate-apply:hover {
+      background: #314056;
+    }
     .candidate-color {
       display: inline-block;
       width: 12px;
@@ -220,10 +235,26 @@ export function renderEditorViewerHtml(model: EditorViewerModel, nonce?: string)
         suggested.appendChild(color);
         suggested.appendChild(document.createTextNode(candidate.suggestedColor));
 
+        var actions = document.createElement("div");
+        actions.className = "candidate-actions";
+
+        var button = document.createElement("button");
+        button.type = "button";
+        button.className = "candidate-apply";
+        button.textContent = "Apply";
+        button.addEventListener("click", function () {
+          vscode.postMessage({
+            type: "applyCandidatePatch",
+            candidateId: candidate.id
+          });
+        });
+
+        actions.appendChild(button);
         item.appendChild(title);
         item.appendChild(meta);
         item.appendChild(reason);
         item.appendChild(suggested);
+        item.appendChild(actions);
         return item;
       }
     })();

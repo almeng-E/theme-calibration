@@ -10,9 +10,11 @@ Command Palette에서는 아래 명령 하나만 실행하면 됩니다.
 Color Calibration: Open Editor Viewer
 ```
 
-이 명령은 현재 theme를 읽고 syntax, diagnostics, diff 샘플을 Webview로 엽니다. 샘플 영역을 클릭하면 클릭한 색상과 진단 맥락을 바탕으로 관련 개선 후보를 만들고, 생성된 개선 후보는 편집기 뷰어의 solution panel(개선 후보 영역)에 표시됩니다. 처리 상태는 알림으로 안내합니다.
+이 명령은 현재 theme를 읽고 syntax, diagnostics, diff 샘플을 Webview로 엽니다. 샘플 영역을 클릭하면 클릭한 색상과 진단 맥락을 바탕으로 관련 개선 후보를 만들고, 생성된 개선 후보는 편집기 뷰어의 solution panel(개선 후보 영역)에 표시됩니다. 처리 상태는 알림으로 안내하며, 각 후보는 Apply 버튼으로 즉시 적용할 수 있습니다.
 
-내부 검증용으로 candidate 기반 apply/rollback 명령이 추가되었으나, 아직 사용자 UI 흐름(public UI flow)에는 실제 설정 적용 제어가 노출되지 않았습니다.
+## 기본 후보 룰
+
+후보 생성은 `resources/rules/default-candidate-rules.json`에 포함된 기본 룰 번들을 사용합니다. 진단 엔진은 이 파일을 직접 읽지 않고, Extension Host가 로드한 `CandidateMappingRule[]`을 주입받아 후보를 계산합니다.
 
 ## 개발 환경
 
@@ -38,12 +40,21 @@ npm test
 - `colorCalibration.printThemeProbe`
 - `colorCalibration.printThemeSignalReport`
 - `colorCalibration.printPatchCandidates`
-- `colorCalibration.openBeforeAfterPreview`
 - `colorCalibration.openCandidatePreview`
 - `colorCalibration.applyCandidatePatch`
 - `colorCalibration.rollbackCandidatePatch`
-- `colorCalibration.applyHardcodedPatch` (legacy/example)
-- `colorCalibration.rollbackHardcodedPatch` (legacy/example)
+
+## 실제 명령 표면
+
+현재 구현과 `src/constants.ts`, `package.json`의 activation event 기준으로 등록된 명령은 아래 7개입니다.
+
+- `colorCalibration.openEditorViewer`
+- `colorCalibration.printThemeProbe`
+- `colorCalibration.printThemeSignalReport`
+- `colorCalibration.printPatchCandidates`
+- `colorCalibration.openCandidatePreview`
+- `colorCalibration.applyCandidatePatch`
+- `colorCalibration.rollbackCandidatePatch`
 
 ## 현재 상태
 
@@ -52,5 +63,4 @@ npm test
 - 가시성 분석 로직 분리
 - editor viewer model 생성
 - editor viewer Webview shell
-
-내부 검증용으로 candidate 기반 apply/rollback 명령이 추가되었으나, 아직 사용자 UI 흐름(public UI flow)에는 실제 설정 적용 제어가 노출되지 않았습니다.
+- editor viewer candidate Apply 동작

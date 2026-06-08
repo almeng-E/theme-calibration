@@ -39,7 +39,7 @@ test("createIntentSolutionNotification creates info message when no risk matches
 
   assert.deepEqual(notification, {
     level: "info",
-    message: "No obvious visibility risk found for string in the current simple rules."
+    message: "No obvious visibility risk found for string in the current rules."
   });
 });
 

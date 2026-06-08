@@ -5,6 +5,7 @@ import { createIntentSolutionNotification } from "./ui/notificationFormatter";
 import { createEditorViewerModel } from "./ui/diagnosticViewModel";
 import { renderEditorViewerHtml } from "./ui/diagnosticViewHtml";
 import { createPatchCandidates, createPatchRecipeFromCandidates } from "./diagnose/diagnosticEngine";
+import { createIntentSolution } from "./diagnose/intentSolution";
 import { createPreviewModel, renderPreviewHtml } from "./ui/previewHtml";
 import {
   buildPatchPlan,
@@ -12,14 +13,23 @@ import {
   wrapRecipeForTheme,
   createCandidatePatchApplyPlan
 } from "./patch/patchService";
+import { createEditorViewerCandidateApplyPlan } from "./patch/editorViewerApplyService";
 import {
   collectThemeSnapshot,
   readCurrentPatchableSettings,
   writeSettingsToVscode
 } from "./adapter/vscodeConfigAdapter";
+import { createCandidateRulesProvider } from "./adapter/candidateRuleProvider";
+import {
+  createDefaultCandidateRuleUri,
+  loadCandidateRulesFromUri
+} from "./adapter/candidateRuleAdapter";
 import { createThemeSignalReport } from "./diagnose/diagnosticService";
 import { getErrorMessage } from "./utils/objectUtils";
+import { applyPatchPlanWithRollback } from "./patch/patchApplicationService";
 import type { PatchCandidate, RollbackSnapshot } from "./types/patch.types";
+import type { CandidateMappingRule } from "./types/rule.types";
+import type { IntentSolution } from "./types/editorViewer.types";
 
 // ============================================================
 // Extension Lifecycle
@@ -27,15 +37,27 @@ import type { PatchCandidate, RollbackSnapshot } from "./types/patch.types";
 
 export function activate(context: vscode.ExtensionContext): void {
   const output = vscode.window.createOutputChannel(OUTPUT_CHANNEL_NAME);
+  const defaultCandidateRulesUri = createDefaultCandidateRuleUri(vscode, context.extensionUri);
+  const getCandidateRules = createCandidateRulesProvider(() =>
+    loadCandidateRulesFromUri(vscode, defaultCandidateRulesUri)
+  );
 
   context.subscriptions.push(
     output,
     registerCommand(output, COMMAND_IDS.printThemeProbe, "Theme probe", handlePrintProbe),
     registerCommand(output, COMMAND_IDS.printThemeSignalReport, "Theme signal report", handlePrintSignalReport),
-    registerCommand(output, COMMAND_IDS.printPatchCandidates, "Patch candidate generation", handlePrintPatchCandidates),
-    registerCommand(output, COMMAND_IDS.openCandidatePreview, "Candidate preview", handleOpenCandidatePreview),
-    registerCommand(output, COMMAND_IDS.openEditorViewer, "Editor viewer", handleOpenEditorViewer),
-    registerCommand(output, COMMAND_IDS.applyCandidatePatch, "Candidate patch apply", (out) => handleApplyCandidatePatch(out, context)),
+    registerCommand(output, COMMAND_IDS.printPatchCandidates, "Patch candidate generation", (out) =>
+      handlePrintPatchCandidates(out, getCandidateRules)
+    ),
+    registerCommand(output, COMMAND_IDS.openCandidatePreview, "Candidate preview", (out) =>
+      handleOpenCandidatePreview(out, getCandidateRules)
+    ),
+    registerCommand(output, COMMAND_IDS.openEditorViewer, "Editor viewer", (out) =>
+      handleOpenEditorViewer(out, context, getCandidateRules)
+    ),
+    registerCommand(output, COMMAND_IDS.applyCandidatePatch, "Candidate patch apply", (out) =>
+      handleApplyCandidatePatch(out, context, getCandidateRules)
+    ),
     registerCommand(output, COMMAND_IDS.rollbackCandidatePatch, "Candidate patch rollback", (out) => handleRollbackCandidatePatch(out, context))
   );
 }
@@ -71,6 +93,8 @@ function registerCommand(
 // Command Handlers
 // ============================================================
 
+type CandidateRulesProvider = () => Promise<CandidateMappingRule[]>;
+
 async function handlePrintProbe(output: vscode.OutputChannel): Promise<void> {
   const probe = await collectThemeSnapshot(vscode, { includeThemeDefinitions: true });
 
@@ -92,10 +116,14 @@ async function handlePrintSignalReport(output: vscode.OutputChannel): Promise<vo
   );
 }
 
-async function handlePrintPatchCandidates(output: vscode.OutputChannel): Promise<void> {
+async function handlePrintPatchCandidates(
+  output: vscode.OutputChannel,
+  getCandidateRules: CandidateRulesProvider
+): Promise<void> {
+  const candidateRules = await getCandidateRules();
   const probe = await collectThemeSnapshot(vscode, { includeThemeDefinitions: true });
   const report = createThemeSignalReport(probe);
-  const candidates = createPatchCandidates(report);
+  const candidates = createPatchCandidates(report, candidateRules);
   const recipe = createPatchRecipeFromCandidates(candidates, report.theme.configuredName);
 
   output.appendLine(JSON.stringify({ theme: report.theme, candidates, recipe }, null, 2));
@@ -107,10 +135,14 @@ async function handlePrintPatchCandidates(output: vscode.OutputChannel): Promise
 
 
 
-async function handleOpenCandidatePreview(output: vscode.OutputChannel): Promise<void> {
+async function handleOpenCandidatePreview(
+  output: vscode.OutputChannel,
+  getCandidateRules: CandidateRulesProvider
+): Promise<void> {
+  const candidateRules = await getCandidateRules();
   const probe = await collectThemeSnapshot(vscode, { includeThemeDefinitions: true });
   const report = createThemeSignalReport(probe);
-  const candidates = createPatchCandidates(report);
+  const candidates = createPatchCandidates(report, candidateRules);
 
   if (candidates.length === 0) {
     output.appendLine("Candidate preview skipped: no-candidates.");
@@ -152,7 +184,12 @@ async function handleOpenCandidatePreview(output: vscode.OutputChannel): Promise
   );
 }
 
-async function handleOpenEditorViewer(output: vscode.OutputChannel): Promise<void> {
+async function handleOpenEditorViewer(
+  output: vscode.OutputChannel,
+  context: vscode.ExtensionContext,
+  getCandidateRules: CandidateRulesProvider
+): Promise<void> {
+  const candidateRules = await getCandidateRules();
   const probe = await collectThemeSnapshot(vscode, { includeThemeDefinitions: true });
   const report = createThemeSignalReport(probe);
   const viewerModel = createEditorViewerModel(report);
@@ -163,7 +200,9 @@ async function handleOpenEditorViewer(output: vscode.OutputChannel): Promise<voi
     "Color Calibration Editor Viewer",
     renderEditorViewerHtml(viewerModel, nonce),
     output,
-    report
+    context,
+    report,
+    candidateRules
   );
 
   output.appendLine(JSON.stringify({
@@ -180,11 +219,16 @@ async function handleOpenEditorViewer(output: vscode.OutputChannel): Promise<voi
 
 
 
-async function handleApplyCandidatePatch(output: vscode.OutputChannel, context: vscode.ExtensionContext): Promise<void> {
+async function handleApplyCandidatePatch(
+  output: vscode.OutputChannel,
+  context: vscode.ExtensionContext,
+  getCandidateRules: CandidateRulesProvider
+): Promise<void> {
+  const candidateRules = await getCandidateRules();
   const target = vscode.ConfigurationTarget.Global;
   const probe = await collectThemeSnapshot(vscode, { includeThemeDefinitions: true });
   const report = createThemeSignalReport(probe);
-  const candidates = createPatchCandidates(report);
+  const candidates = createPatchCandidates(report, candidateRules);
 
   if (candidates.length === 0) {
     output.appendLine("Candidate patch apply skipped: no-candidates.");
@@ -214,8 +258,11 @@ async function handleApplyCandidatePatch(output: vscode.OutputChannel, context: 
     existingSettings
   });
 
-  await writeSettingsToVscode(vscode, applyPlan.patchPlan.settingsUpdates, target);
-  await context.globalState.update(CANDIDATE_ROLLBACK_STATE_KEY, applyPlan.patchPlan.rollbackSnapshot);
+  await applyPatchPlanWithRollback({
+    patchPlan: applyPlan.patchPlan,
+    saveRollback: (snapshot) => context.globalState.update(CANDIDATE_ROLLBACK_STATE_KEY, snapshot),
+    writeSettings: (updates) => writeSettingsToVscode(vscode, updates, target)
+  });
 
   output.appendLine(JSON.stringify({
     themeName: report.theme.configuredName,
@@ -298,7 +345,9 @@ function openEditorViewerPanel(
   title: string,
   html: string,
   output: vscode.OutputChannel,
-  report: ReturnType<typeof createThemeSignalReport>
+  context: vscode.ExtensionContext,
+  report: ReturnType<typeof createThemeSignalReport>,
+  candidateRules: CandidateMappingRule[]
 ): void {
   const panel = vscode.window.createWebviewPanel(
     viewType,
@@ -311,34 +360,86 @@ function openEditorViewerPanel(
   );
 
   panel.webview.html = html;
+  let latestSolution: IntentSolution | undefined;
 
-  panel.webview.onDidReceiveMessage((message) => {
-    if (message?.type !== "regionClick") {
-      return;
-    }
-
+  panel.webview.onDidReceiveMessage(async (message) => {
     try {
-      const intent = message.intent;
-      const solution = { status: "candidates", candidates: [], intent };
-      const notification = createIntentSolutionNotification(solution);
+      if (message?.type === "regionClick") {
+        const intent = message.intent;
+        const solution = createIntentSolution(report, intent, candidateRules);
+        latestSolution = solution;
+        const notification = createIntentSolutionNotification(solution);
 
-      void panel.webview.postMessage({
-        type: "solutionResult",
-        solution
-      });
+        await panel.webview.postMessage({
+          type: "solutionResult",
+          solution
+        });
 
-      output.appendLine(`[Region Click] ${JSON.stringify({ intent, solution }, null, 2)}`);
-      console.log("[Color Calibration] Region click solution", solution);
+        output.appendLine(`[Region Click] ${JSON.stringify({ intent, solution }, null, 2)}`);
+        console.log("[Color Calibration] Region click solution", solution);
 
-      if (notification.level === "info") {
-        vscode.window.showInformationMessage(notification.message);
-      } else {
-        vscode.window.showWarningMessage(notification.message);
+        if (notification.level === "info") {
+          vscode.window.showInformationMessage(notification.message);
+        } else {
+          vscode.window.showWarningMessage(notification.message);
+        }
+        return;
+      }
+
+      if (message?.type === "applyCandidatePatch") {
+        const target = vscode.ConfigurationTarget.Global;
+        const currentProbe = await collectThemeSnapshot(vscode, { includeThemeDefinitions: true });
+        const currentReport = createThemeSignalReport(currentProbe);
+        const applyResult = createEditorViewerCandidateApplyPlan({
+          report,
+          currentReport,
+          latestSolution,
+          candidateId: typeof message.candidateId === "string" ? message.candidateId : "",
+          existingSettings: readCurrentPatchableSettings(vscode, target)
+        });
+
+        if (applyResult.status === "noActiveSolution") {
+          output.appendLine("[Candidate Apply] no active candidate solution available.");
+          vscode.window.showWarningMessage("No candidate is currently available to apply.");
+          return;
+        }
+
+        if (applyResult.status === "invalidCandidateId") {
+          output.appendLine("[Candidate Apply] invalid candidate id: <empty>");
+          vscode.window.showWarningMessage("The selected candidate is invalid.");
+          return;
+        }
+
+        if (applyResult.status === "staleReport") {
+          output.appendLine(`[Candidate Apply] stale viewer report: expected ${String(report.theme.configuredName || "<unknown>")} current ${String(currentReport.theme.configuredName || "<unknown>")}`);
+          vscode.window.showWarningMessage("The editor viewer is stale. Reopen it and try applying the candidate again.");
+          return;
+        }
+
+        if (applyResult.status === "candidateUnavailable") {
+          output.appendLine(`[Candidate Apply] invalid or unavailable candidate: ${String(message.candidateId || "<empty>")}`);
+          vscode.window.showWarningMessage("The selected candidate is no longer available.");
+          return;
+        }
+
+        await applyPatchPlanWithRollback({
+          patchPlan: applyResult.patchPlan,
+          saveRollback: (snapshot) => context.globalState.update(CANDIDATE_ROLLBACK_STATE_KEY, snapshot),
+          writeSettings: (updates) => writeSettingsToVscode(vscode, updates, target)
+        });
+
+        output.appendLine(`[Candidate Apply] ${JSON.stringify({
+          selectedCandidateIds: [applyResult.selectedCandidate.id],
+          settingsUpdates: applyResult.patchPlan.settingsUpdates,
+          rollbackStateKey: CANDIDATE_ROLLBACK_STATE_KEY
+        }, null, 2)}`);
+        console.log("[Color Calibration] Candidate patch applied from webview", applyResult);
+        vscode.window.showInformationMessage("Applied 1 candidate patch(es).");
       }
     } catch (error) {
       const errorMessage = getErrorMessage(error);
-      output.appendLine(`[Region Click] invalid intent: ${errorMessage}`);
-      vscode.window.showWarningMessage(`Invalid editor viewer click payload: ${errorMessage}`);
+      output.appendLine(`[Editor Viewer Message] invalid payload: ${errorMessage}`);
+      vscode.window.showWarningMessage(`Invalid editor viewer payload: ${errorMessage}`);
     }
   });
 }

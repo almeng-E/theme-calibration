@@ -1,7 +1,5 @@
-import { SETTING_IDS } from "../constants";
 import type {
   PatchCandidate,
-  CandidateSettingChange,
   PatchRecipe,
   SettingDictionary,
   TargetSettingId
@@ -11,20 +9,12 @@ import type {
   ThemeAnalysisReport,
   VisibilityRisk
 } from "../types/signal.types";
+import type { CandidateMappingRule } from "../types/rule.types";
 import { isPlainObject, createEmptySettingsSnapshot } from "../utils/objectUtils";
 
 // ============================================================
 // 1. Constants & Mappings
 // ============================================================
-
-export interface CandidateMappingRule {
-  type: "lowContrast" | "similarSignal";
-  signals: ColorSignalRole[];
-  settingId: TargetSettingId;
-  settingKey: string;
-  suggestedColor: string;
-  confidence: number;
-}
 
 // ============================================================
 // 2. Main Generation APIs
