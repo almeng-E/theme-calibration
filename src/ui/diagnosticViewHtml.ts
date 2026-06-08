@@ -180,6 +180,8 @@ export function renderEditorViewerHtml(model: EditorViewerModel, nonce?: string)
         }
       });
 
+      var renderedCandidateIds = {};
+
       window.addEventListener("message", function (event) {
         var message = event.data;
         if (!message || message.type !== "solutionResult") {
@@ -196,13 +198,20 @@ export function renderEditorViewerHtml(model: EditorViewerModel, nonce?: string)
           return;
         }
 
-        list.textContent = "";
         if (solution.status === "candidates") {
           var candidates = Array.isArray(solution.candidates) ? solution.candidates : [];
-          status.textContent = "Found " + candidates.length + " candidate(s) for " + solution.intent.signal + ".";
+          
+          var addedCount = 0;
           candidates.forEach(function (candidate) {
-            list.appendChild(renderCandidate(candidate));
+            if (!renderedCandidateIds[candidate.id]) {
+              renderedCandidateIds[candidate.id] = true;
+              list.appendChild(renderCandidate(candidate));
+              addedCount++;
+            }
           });
+
+          status.textContent = "Found " + candidates.length + " candidate(s) for " + solution.intent.signal + ". " + 
+                               (addedCount > 0 ? "Added " + addedCount + " new." : "Already in list.");
           return;
         }
 
