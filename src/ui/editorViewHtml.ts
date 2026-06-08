@@ -3,6 +3,7 @@ import { escapeHtml } from "./htmlUtils";
 import { renderTopBar } from "./components/topBar";
 import { renderSliderArea } from "./components/sliderArea";
 import { renderCandidatePanel } from "./components/candidatePanel";
+import { viewerCss } from "./viewerCss";
 
 export function renderEditorViewerHtml(model: EditorViewerModel, nonce?: string): string {
   const initialCandidatesJson = JSON.stringify(model.initialCandidates || []);
@@ -18,206 +19,7 @@ export function renderEditorViewerHtml(model: EditorViewerModel, nonce?: string)
   <meta name="viewport" content="width=device-width, initial-scale=1.0">${cspMeta}
   <title>Current Theme Editor Viewer</title>
   <style>
-    :root {
-      --bg: var(--vscode-editor-background, #111318);
-      --panel-bg: var(--vscode-sideBar-background, #1b1f27);
-      --border: var(--vscode-widget-border, var(--vscode-editorGroup-border, #343b48));
-      --text: var(--vscode-editor-foreground, #f2f4f8);
-      --muted: var(--vscode-descriptionForeground, #9aa4b2);
-      --primary: var(--vscode-button-background, #2f81f7);
-      --btn-bg: var(--vscode-button-secondaryBackground, #273142);
-      --btn-hover: var(--vscode-button-secondaryHoverBackground, #314056);
-      --btn-border: var(--vscode-button-border, #4a5568);
-    }
-    body {
-      margin: 0;
-      padding: 0;
-      background: var(--bg);
-      color: var(--text);
-      font: 13px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      height: 100vh;
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-    }
-    body.is-dragging {
-      user-select: none;
-      -webkit-user-select: none;
-    }
-    
-    /* Top Bar Layout */
-    .top-bar {
-      display: flex;
-      border-bottom: 1px solid var(--border);
-      height: 48px;
-      flex-shrink: 0;
-    }
-    .t1-tabs {
-      flex: 1;
-      display: flex;
-      gap: 2px;
-      padding: 0 16px;
-      align-items: flex-end;
-    }
-    .tab-button {
-      background: transparent;
-      border: 1px solid transparent;
-      border-bottom: 0;
-      color: var(--muted);
-      padding: 8px 16px;
-      font: inherit;
-      font-size: 14px;
-      cursor: pointer;
-      border-radius: 6px 6px 0 0;
-    }
-    .tab-button:hover {
-      background: rgba(255, 255, 255, 0.05);
-    }
-    .tab-button.active {
-      background: var(--panel-bg);
-      border-color: var(--border);
-      color: var(--text);
-      font-weight: 600;
-    }
-    .t2-title {
-      width: 320px;
-      padding: 0 16px;
-      display: flex;
-      align-items: center;
-      font-weight: 600;
-      font-size: 14px;
-      border-left: 1px solid var(--border);
-    }
-
-    /* Main Area Layout */
-    .main-area {
-      display: flex;
-      flex: 1;
-      overflow: hidden;
-    }
-    
-    /* M1: Code & Slider Container */
-    .m1-editor-container {
-      flex: 1;
-      position: relative;
-      background: var(--panel-bg);
-      overflow-y: auto;
-      overflow-x: hidden;
-    }
-    .slider-wrapper {
-      position: relative;
-      min-height: 100%; /* Ensure it spans the scroll area */
-    }
-    .slider-layer {
-      position: absolute;
-      top: 0;
-      bottom: 0; /* Let it stretch */
-      left: 0;
-      width: 100%;
-    }
-    .slider-layer-a {
-      z-index: 1;
-    }
-    .slider-layer-b {
-      z-index: 2;
-      clip-path: polygon(50% 0, 100% 0, 100% 100%, 50% 100%);
-    }
-    .editor-content {
-      padding: 24px;
-    }
-    
-    /* Slider Handle */
-    .slider-handle {
-      position: absolute;
-      top: 0;
-      bottom: 0;
-      left: 50%;
-      width: 2px;
-      background: var(--primary);
-      cursor: ew-resize;
-      z-index: 10;
-      box-shadow: 0 0 10px rgba(0,0,0,0.3);
-    }
-    .slider-handle::after {
-      content: "";
-      position: absolute;
-      top: 50%;
-      left: -14px;
-      width: 30px;
-      height: 30px;
-      background: var(--primary);
-      border-radius: 50%;
-      transform: translateY(-50%);
-      box-shadow: 0 2px 6px rgba(0,0,0,0.4);
-    }
-    .slider-handle::before {
-      content: "◂ ▸";
-      position: absolute;
-      top: 50%;
-      left: -14px;
-      width: 30px;
-      height: 30px;
-      transform: translateY(-50%);
-      color: var(--bg);
-      font-size: 12px;
-      letter-spacing: -1px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 11;
-      pointer-events: none;
-    }
-
-    /* M2: Solution Panel */
-    .m2-solution-panel {
-      width: 320px;
-      background: var(--bg);
-      border-left: 1px solid var(--border);
-      padding: 16px;
-      overflow-y: auto;
-    }
-    
-    /* Components Inside Content */
-    .sample h2 { display: none; } /* Hide old title inside sample since we use tabs */
-    .editor {
-      margin: 0;
-      font-family: var(--vscode-editor-font-family, Consolas, "Courier New", monospace);
-      font-size: var(--vscode-editor-font-size, 13px);
-      font-weight: var(--vscode-editor-font-weight, normal);
-      line-height: var(--vscode-editor-line-height, 1.55);
-      white-space: pre-wrap;
-    }
-    .line {
-      display: block;
-      min-height: 20px;
-    }
-    .region {
-      border: 0;
-      padding: 0;
-      background: transparent;
-      border-radius: 3px;
-      font: inherit;
-      text-align: left;
-      cursor: pointer;
-    }
-    .region:focus {
-      outline: 1px solid var(--vscode-focusBorder, #ffffff);
-      outline-offset: 1px;
-    }
-    
-    /* Candidate Panel Styles */
-    .solution-status { margin: 0 0 12px; color: var(--muted); }
-    .candidate { border-top: 1px solid var(--border); padding: 12px 0; }
-    .candidate:first-child { border-top: 0; padding-top: 0; }
-    .candidate-title { margin: 0 0 6px; font-weight: 600; }
-    .candidate-meta { margin: 0 0 6px; color: var(--muted); font-size: 12px; }
-    .candidate-actions { margin-top: 10px; display: flex; gap: 8px; }
-    .candidate-btn {
-      border: 1px solid var(--btn-border); border-radius: 6px; background: var(--btn-bg); color: var(--text); padding: 4px 10px; font: inherit; cursor: pointer; display: flex; align-items: center; gap: 4px;
-    }
-    .candidate-btn:hover { background: var(--btn-hover); }
-    .candidate-btn.reject:hover { background: var(--vscode-errorForeground, #5c2020); color: var(--vscode-editor-background); border-color: transparent; }
-    .candidate-color { display: inline-block; width: 12px; height: 12px; border: 1px solid var(--border); vertical-align: -2px; margin-right: 6px; }
+    ${viewerCss}
   </style>
 </head>
 <body>
@@ -234,39 +36,81 @@ export function renderEditorViewerHtml(model: EditorViewerModel, nonce?: string)
     (function () {
       var vscode = acquireVsCodeApi();
       
-      // 1. Tab Logic
-      var tabButtons = document.querySelectorAll('.tab-button');
-      tabButtons.forEach(function(btn) {
-        btn.addEventListener('click', function() {
-          var targetId = this.getAttribute('data-tab');
-          
-          // Update active tab
-          tabButtons.forEach(function(b) { b.classList.remove('active'); });
-          this.classList.add('active');
-          
-          // Update visible samples in both A and B layers
-          var samples = document.querySelectorAll('.sample');
-          samples.forEach(function(sample) {
-            if (sample.getAttribute('data-sample-id') === targetId) {
-              sample.style.display = '';
-            } else {
-              sample.style.display = 'none';
-            }
+      // 전역 상태 (Global UI State)
+      var UIState = {
+        activeTab: 'syntax',
+        activeRegionId: null,
+        candidateStatus: {} // candidateId -> 'none' | 'accepted' | 'rejected'
+      };
+
+      // 상태를 DOM에 반영하는 싱글톤 함수
+      function syncUI() {
+        // 1. Tab & Sample Visibility
+        document.querySelectorAll('.tab-button').forEach(function(btn) {
+          if (btn.getAttribute('data-tab') === UIState.activeTab) {
+            btn.classList.add('active');
+          } else {
+            btn.classList.remove('active');
+          }
+        });
+
+        document.querySelectorAll('.sample').forEach(function(sample) {
+          if (sample.getAttribute('data-sample-id') === UIState.activeTab) {
+            sample.style.display = '';
+          } else {
+            sample.style.display = 'none';
+          }
+        });
+
+        // 2. Region & Candidate Active State (Highlight)
+        document.querySelectorAll('.region.active, .candidate.active').forEach(function(el) {
+          el.classList.remove('active');
+        });
+
+        if (UIState.activeRegionId) {
+          document.querySelectorAll('.region[data-region-id="' + UIState.activeRegionId + '"]').forEach(function(el) {
+            el.classList.add('active');
           });
+          document.querySelectorAll('.candidate[data-region-id="' + UIState.activeRegionId + '"]').forEach(function(el) {
+            el.classList.add('active');
+          });
+        }
+
+        // 3. Candidate Accept/Reject Status & Buttons
+        document.querySelectorAll('.candidate').forEach(function(card) {
+          var cid = card.getAttribute('data-candidate-id');
+          var status = UIState.candidateStatus[cid];
           
-          // Recalculate slider height matching by forcing a reflow if needed
-          updateSliderWrapperHeight();
+          var acceptBtn = card.querySelector('.accept-btn');
+          var rejectBtn = card.querySelector('.reject-btn');
+          
+          if (acceptBtn && rejectBtn) {
+            acceptBtn.className = "candidate-btn accept-btn accept"; // reset classes
+            rejectBtn.className = "candidate-btn reject-btn reject";
+            
+            if (status === 'accepted') {
+              acceptBtn.classList.add('active');
+              rejectBtn.classList.add('disabled');
+            } else if (status === 'rejected') {
+              rejectBtn.classList.add('active');
+              acceptBtn.classList.add('disabled');
+            }
+          }
+        });
+
+        updateSliderWrapperHeight();
+      }
+
+      // 초기 탭 이벤트 리스너 세팅
+      document.querySelectorAll('.tab-button').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          UIState.activeTab = this.getAttribute('data-tab');
+          syncUI();
         });
       });
-
-      // 2. Slider Logic
-      var container = document.getElementById("slider-container");
-      var wrapper = document.querySelector(".slider-wrapper");
-      var layerB = document.getElementById("layer-b");
-      var handle = document.getElementById("slider-handle");
-      var isDragging = false;
-      
       function updateSliderWrapperHeight() {
+        var wrapper = document.querySelector(".slider-wrapper");
+        if (!wrapper) return;
         // Because layer A and B are absolute, wrapper needs an explicit height
         // to enable scrolling on the container.
         // We find the currently visible sample's height.
@@ -275,38 +119,48 @@ export function renderEditorViewerHtml(model: EditorViewerModel, nonce?: string)
           wrapper.style.minHeight = visibleA.scrollHeight + 48 + 'px'; // + padding
         }
       }
-      // Run once on load
-      setTimeout(updateSliderWrapperHeight, 0);
+      // Slider Logic
+      var container = document.getElementById("slider-container");
+      var layerB = document.getElementById("layer-b");
+      var handle = document.getElementById("slider-handle");
+      var isDragging = false;
+      
+      if (handle && layerB && container) {
+        handle.addEventListener("mousedown", function(e) {
+          isDragging = true;
+          document.body.classList.add("is-dragging");
+          e.preventDefault();
+        });
+        window.addEventListener("mouseup", function() {
+          isDragging = false;
+          document.body.classList.remove("is-dragging");
+        });
+        window.addEventListener("mousemove", function(e) {
+          if (!isDragging) return;
+          var rect = container.getBoundingClientRect();
+          var x = e.clientX - rect.left;
+          var percent = Math.max(0, Math.min(100, (x / rect.width) * 100));
+          layerB.style.clipPath = "polygon(" + percent + "% 0, 100% 0, 100% 100%, " + percent + "% 100%)";
+          handle.style.left = percent + "%";
+        });
+      }
 
-      handle.addEventListener("mousedown", function(e) {
-        isDragging = true;
-        document.body.classList.add("is-dragging");
-        e.preventDefault();
-      });
-      window.addEventListener("mouseup", function() {
-        isDragging = false;
-        document.body.classList.remove("is-dragging");
-      });
-      window.addEventListener("mousemove", function(e) {
-        if (!isDragging) return;
-        var rect = container.getBoundingClientRect();
-        var x = e.clientX - rect.left;
-        var percent = Math.max(0, Math.min(100, (x / rect.width) * 100));
-        layerB.style.clipPath = "polygon(" + percent + "% 0, 100% 0, 100% 100%, " + percent + "% 100%)";
-        handle.style.left = percent + "%";
-      });
-
-      // 3. Cherry-pick Click Logic
+      // Cherry-pick Click Logic
       document.addEventListener("click", function (event) {
         var target = event.target;
         while (target && target !== document.body) {
           if (target.classList && target.classList.contains("region")) {
             var intentData = target.getAttribute("data-intent");
+            var regionId = target.getAttribute("data-region-id");
             if (intentData) {
               try {
+                var intent = JSON.parse(intentData);
+                UIState.activeRegionId = regionId;
+                syncUI();
+                
                 vscode.postMessage({
                   type: "regionClick",
-                  intent: JSON.parse(intentData)
+                  intent: intent
                 });
               } catch (e) {}
             }
@@ -316,12 +170,22 @@ export function renderEditorViewerHtml(model: EditorViewerModel, nonce?: string)
         }
       });
 
-      // 4. Candidate Panel Rendering
+      // Candidate Panel Messaging
       var renderedCandidateIds = {};
       window.addEventListener("message", function (event) {
         var message = event.data;
-        if (!message || message.type !== "solutionResult") return;
-        renderSolutionResult(message.solution);
+        if (!message) return;
+        
+        if (message.type === "solutionResult") {
+          renderSolutionResult(message.solution);
+        } else if (message.type === "updateAfterHtml") {
+          var layerBContent = document.querySelector("#layer-b .editor-content");
+          if (layerBContent) {
+            layerBContent.innerHTML = message.html;
+            // B 레이어의 DOM이 새로 생성되었으므로 syncUI를 호출해 .active 클래스 등을 복구합니다.
+            syncUI();
+          }
+        }
       });
 
       function renderSolutionResult(solution) {
@@ -335,28 +199,100 @@ export function renderEditorViewerHtml(model: EditorViewerModel, nonce?: string)
           candidates.forEach(function (candidate) {
             if (!renderedCandidateIds[candidate.id]) {
               renderedCandidateIds[candidate.id] = true;
-              list.appendChild(renderCandidate(candidate));
+              list.appendChild(renderCandidate(candidate, solution.intent.targetId));
               addedCount++;
             }
           });
           status.textContent = "Found " + candidates.length + " candidate(s) for " + solution.intent.signal + ". " + 
                                (addedCount > 0 ? "Added " + addedCount + " new." : "");
+          syncUI();
           return;
         }
-        if (solution.status === "noMatchingRisk") {
-          status.textContent = "No obvious risk found for " + solution.intent.signal + " with the current rules.";
+        if (solution.status === "noMatchingRisk" || solution.status === "noCandidate") {
+          var msg = solution.status === "noMatchingRisk" 
+            ? "No obvious risk found for " + solution.intent.signal + " with the current rules."
+            : "A related risk was found, but no conservative candidate is available yet.";
+          
+          status.textContent = msg;
+          
+          var emptyId = solution.intent.targetId + "-empty";
+          if (solution.intent.targetId && !renderedCandidateIds[emptyId]) {
+            renderedCandidateIds[emptyId] = true;
+            list.appendChild(renderEmptyCandidate(solution.intent.targetId, "해당 구문에 대한 자동 추천 항목이 없습니다."));
+            syncUI();
+          }
           return;
         }
-        status.textContent = "A related risk was found, but no conservative candidate is available yet.";
       }
 
-      function renderCandidate(candidate) {
+      function renderEmptyCandidate(targetRegionId, message) {
         var item = document.createElement("article");
         item.className = "candidate";
+        if (targetRegionId) {
+          item.setAttribute("data-region-id", targetRegionId);
+        }
 
-        var title = document.createElement("p");
+        var titleWrapper = document.createElement("div");
+        var title = document.createElement("span");
+        title.className = "candidate-title";
+        title.textContent = "알림";
+        titleWrapper.appendChild(title);
+
+        var reason = document.createElement("p");
+        reason.className = "candidate-meta";
+        reason.textContent = message;
+
+        item.appendChild(titleWrapper);
+        item.appendChild(reason);
+        return item;
+      }
+
+      function renderCandidate(candidate, targetRegionId) {
+        var item = document.createElement("article");
+        item.className = "candidate";
+        item.setAttribute("data-candidate-id", candidate.id);
+        if (targetRegionId && targetRegionId !== "global") {
+          item.setAttribute("data-region-id", targetRegionId);
+        } else if (candidate.signals && candidate.signals.length > 0) {
+          item.setAttribute("data-signals", candidate.signals.join(","));
+        }
+
+        // Card Click Two-Way Sync
+        item.addEventListener("click", function(e) {
+          if (e.target.tagName.toLowerCase() === 'button') return;
+          
+          var regionId = item.getAttribute("data-region-id");
+          if (!regionId) {
+            // fallback: find matching region by signals
+            var signalsAttr = item.getAttribute("data-signals");
+            if (signalsAttr) {
+              var signals = signalsAttr.split(",");
+              var regions = document.querySelectorAll('.region[data-intent]');
+              for (var i = 0; i < regions.length; i++) {
+                try {
+                  var intent = JSON.parse(regions[i].getAttribute("data-intent"));
+                  if (signals.indexOf(intent.signal) !== -1) {
+                    regionId = regions[i].getAttribute("data-region-id");
+                    item.setAttribute("data-region-id", regionId); // cache it
+                    break;
+                  }
+                } catch(err) {}
+              }
+            }
+          }
+          
+          if (regionId) {
+            UIState.activeRegionId = regionId;
+            syncUI();
+          }
+        });
+
+        var titleWrapper = document.createElement("div");
+        var title = document.createElement("span");
         title.className = "candidate-title";
         title.textContent = candidate.settingKey;
+        
+        titleWrapper.appendChild(title);
 
         var reason = document.createElement("p");
         reason.className = "candidate-meta";
@@ -376,24 +312,28 @@ export function renderEditorViewerHtml(model: EditorViewerModel, nonce?: string)
 
         var acceptBtn = document.createElement("button");
         acceptBtn.type = "button";
-        acceptBtn.className = "candidate-btn";
+        acceptBtn.className = "candidate-btn accept-btn accept";
         acceptBtn.innerHTML = "✓ Accept";
         acceptBtn.addEventListener("click", function () {
+          UIState.candidateStatus[candidate.id] = 'accepted';
+          syncUI();
           vscode.postMessage({ type: "applyCandidatePatch", candidateId: candidate.id });
         });
 
         var rejectBtn = document.createElement("button");
         rejectBtn.type = "button";
-        rejectBtn.className = "candidate-btn reject";
+        rejectBtn.className = "candidate-btn reject-btn reject";
         rejectBtn.innerHTML = "✗ Reject";
         rejectBtn.addEventListener("click", function () {
-          item.remove();
+          UIState.candidateStatus[candidate.id] = 'rejected';
+          syncUI();
+          vscode.postMessage({ type: "rejectCandidatePatch", candidateId: candidate.id });
         });
 
         actions.appendChild(acceptBtn);
         actions.appendChild(rejectBtn);
         
-        item.appendChild(title);
+        item.appendChild(titleWrapper);
         item.appendChild(reason);
         item.appendChild(suggested);
         item.appendChild(actions);
@@ -403,12 +343,19 @@ export function renderEditorViewerHtml(model: EditorViewerModel, nonce?: string)
       // Initial Render
       var initialCandidates = ${initialCandidatesJson};
       if (initialCandidates && initialCandidates.length > 0) {
+        initialCandidates.forEach(function(c) {
+          UIState.candidateStatus[c.id] = 'accepted';
+        });
         renderSolutionResult({
           status: "candidates",
           candidates: initialCandidates,
-          intent: { signal: "Full Diagnosis" }
+          intent: { signal: "Full Diagnosis", targetId: "global" }
         });
       }
+      
+      // Run once on load
+      syncUI();
+      setTimeout(updateSliderWrapperHeight, 0);
     })();
   </script>
 </body>

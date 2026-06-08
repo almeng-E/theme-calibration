@@ -34,8 +34,10 @@
     "test": "npm run compile && node --test"
   },
   "devDependencies": {
+    "@testing-library/dom": "^10.4.1",
     "@types/node": "^18.19.130",
     "@types/vscode": "^1.85.0",
+    "jsdom": "^29.1.1",
     "typescript": "^5.4.5"
   }
 }
