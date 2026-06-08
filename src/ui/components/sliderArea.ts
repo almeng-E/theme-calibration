@@ -2,8 +2,8 @@ import type { EditorViewerSample, EditorViewerLine, EditorViewerRegion } from ".
 import { escapeHtml, cssColor } from "../htmlUtils";
 
 export function renderSliderArea(samplesA: EditorViewerSample[], samplesB: EditorViewerSample[]): string {
-  const contentA = samplesA.map((s, i) => renderSample(s, i === 0)).join("");
-  const contentB = samplesB.map((s, i) => renderSample(s, i === 0)).join("");
+  const contentA = renderSamplesHtml(samplesA);
+  const contentB = renderSamplesHtml(samplesB);
 
   return `
     <section class="m1-editor-container" id="slider-container">
@@ -18,6 +18,10 @@ export function renderSliderArea(samplesA: EditorViewerSample[], samplesB: Edito
       </div>
     </section>
   `;
+}
+
+export function renderSamplesHtml(samples: EditorViewerSample[]): string {
+  return samples.map((s, i) => renderSample(s, i === 0)).join("");
 }
 
 function renderSample(sample: EditorViewerSample, isFirst: boolean): string {

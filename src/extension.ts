@@ -6,6 +6,7 @@ import { CANDIDATE_ROLLBACK_STATE_KEY, COMMAND_IDS, OUTPUT_CHANNEL_NAME } from "
 import { createIntentSolutionNotification } from "./ui/notificationFormatter";
 import { createEditorViewerModel } from "./ui/editorViewModel";
 import { renderEditorViewerHtml } from "./ui/editorViewHtml";
+import { renderSamplesHtml } from "./ui/components/sliderArea";
 import { createPatchCandidates, createPatchRecipeFromCandidates } from "./diagnose/diagnosticEngine";
 import { createIntentSolution } from "./diagnose/intentSolution";
 import { createPreviewModel, renderPreviewHtml, extractPatchSignals } from "./ui/previewHtml";
@@ -215,7 +216,8 @@ async function handleOpenEditorViewer(
     output,
     context,
     report,
-    candidateRules
+    candidateRules,
+    initialCandidates
   );
 
   output.appendLine(JSON.stringify({
@@ -360,7 +362,8 @@ function openEditorViewerPanel(
   output: vscode.OutputChannel,
   context: vscode.ExtensionContext,
   report: ReturnType<typeof createThemeSignalReport>,
-  candidateRules: CandidateMappingRule[]
+  candidateRules: CandidateMappingRule[],
+  initialCandidates: PatchCandidate[]
 ): void {
   const panel = vscode.window.createWebviewPanel(
     viewType,
@@ -373,7 +376,10 @@ function openEditorViewerPanel(
   );
 
   panel.webview.html = html;
-  let latestSolution: IntentSolution | undefined;
+  let latestSolution: ReturnType<typeof createIntentSolution> | undefined;
+  // 초기에는 추천된 모든 후보가 B레이어에 적용되어 있다고 가정합니다.
+  const activeCandidates: PatchCandidate[] = [...initialCandidates];
+  const baseSignals = normalizeReportSignals(report.signals);
 
   panel.webview.onDidReceiveMessage(async (message) => {
     try {
@@ -400,39 +406,62 @@ function openEditorViewerPanel(
       }
 
       if (message?.type === "applyCandidatePatch") {
+        const candidateId = typeof message.candidateId === "string" ? message.candidateId : "";
+        if (!candidateId) return;
+
+        let candidate = activeCandidates.find((c) => c.id === candidateId);
+        let isNewToActive = false;
+
+        if (!candidate) {
+          candidate = initialCandidates.find((c) => c.id === candidateId);
+          
+          if (!candidate && latestSolution) {
+            const candidates = Array.isArray(latestSolution.candidates) ? latestSolution.candidates : [];
+            candidate = candidates.find((c) => c.id === candidateId);
+          }
+
+          if (candidate) {
+            activeCandidates.push(candidate);
+            isNewToActive = true;
+          }
+        }
+
+        if (isNewToActive) {
+          // Recalculate afterSignals based on accumulated candidates
+          const afterSignals = { ...baseSignals };
+          for (const c of activeCandidates) {
+            for (const sig of c.signals) {
+              afterSignals[sig] = c.suggestedColor;
+            }
+          }
+
+          // Create a new model just to extract the afterSamples
+          const newModel = createEditorViewerModel(report, afterSignals);
+          const newLayerBHtml = renderSamplesHtml(newModel.afterSamples || []);
+
+          // Send updated B layer HTML to Webview
+          await panel.webview.postMessage({
+            type: "updateAfterHtml",
+            html: newLayerBHtml
+          });
+        }
+
         const target = vscode.ConfigurationTarget.Global;
+        if (!candidate) return; // 찾지 못한 경우 안전하게 종료
+
         const currentProbe = await collectThemeSnapshot(vscode, { includeThemeDefinitions: true });
         const currentReport = createThemeSignalReport(currentProbe);
+
+        // candidate가 반드시 존재하므로 직접 전달합니다.
         const applyResult = createEditorViewerCandidateApplyPlan({
           report,
           currentReport,
-          latestSolution,
-          candidateId: typeof message.candidateId === "string" ? message.candidateId : "",
+          candidate: candidate, // 찾은 candidate를 직접 주입
           existingSettings: readCurrentPatchableSettings(vscode, target)
         });
 
-        if (applyResult.status === "noActiveSolution") {
-          output.appendLine("[Candidate Apply] no active candidate solution available.");
-          vscode.window.showWarningMessage("No candidate is currently available to apply.");
-          return;
-        }
-
-        if (applyResult.status === "invalidCandidateId") {
-          output.appendLine("[Candidate Apply] invalid candidate id: <empty>");
-          vscode.window.showWarningMessage("The selected candidate is invalid.");
-          return;
-        }
-
         if (applyResult.status === "staleReport") {
-          output.appendLine(`[Candidate Apply] stale viewer report: expected ${String(report.theme.configuredName || "<unknown>")} current ${String(currentReport.theme.configuredName || "<unknown>")}`);
-          vscode.window.showWarningMessage("The editor viewer is stale. Reopen it and try applying the candidate again.");
-          return;
-        }
-
-        if (applyResult.status === "candidateUnavailable") {
-          output.appendLine(`[Candidate Apply] invalid or unavailable candidate: ${String(message.candidateId || "<empty>")}`);
-          vscode.window.showWarningMessage("The selected candidate is no longer available.");
-          return;
+          return; 
         }
 
         await applyPatchPlanWithRollback({
@@ -441,13 +470,35 @@ function openEditorViewerPanel(
           writeSettings: (updates) => writeSettingsToVscode(vscode, updates, target)
         });
 
-        output.appendLine(`[Candidate Apply] ${JSON.stringify({
-          selectedCandidateIds: [applyResult.selectedCandidate.id],
-          settingsUpdates: applyResult.patchPlan.settingsUpdates,
-          rollbackStateKey: CANDIDATE_ROLLBACK_STATE_KEY
-        }, null, 2)}`);
         console.log("[Color Calibration] Candidate patch applied from webview", applyResult);
         vscode.window.showInformationMessage("Applied 1 candidate patch(es).");
+      }
+
+      if (message?.type === "rejectCandidatePatch") {
+        const candidateId = typeof message.candidateId === "string" ? message.candidateId : "";
+        if (!candidateId) return;
+
+        const idx = activeCandidates.findIndex((c) => c.id === candidateId);
+        if (idx !== -1) {
+          activeCandidates.splice(idx, 1);
+
+          // Recalculate afterSignals based on remaining candidates
+          const afterSignals = { ...baseSignals };
+          for (const c of activeCandidates) {
+            for (const sig of c.signals) {
+              afterSignals[sig] = c.suggestedColor;
+            }
+          }
+
+          // Update B layer HTML
+          const newModel = createEditorViewerModel(report, afterSignals);
+          const newLayerBHtml = renderSamplesHtml(newModel.afterSamples || []);
+
+          await panel.webview.postMessage({
+            type: "updateAfterHtml",
+            html: newLayerBHtml
+          });
+        }
       }
     } catch (error) {
       const errorMessage = getErrorMessage(error);
