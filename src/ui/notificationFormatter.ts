@@ -1,3 +1,5 @@
+import type { IntentSolution } from "../types/editorViewer.types";
+
 export type IntentSolutionNotificationLevel = "info" | "warning";
 
 export interface IntentSolutionNotification {
@@ -5,7 +7,7 @@ export interface IntentSolutionNotification {
   message: string;
 }
 
-export function createIntentSolutionNotification(solution: any): IntentSolutionNotification {
+export function createIntentSolutionNotification(solution: IntentSolution): IntentSolutionNotification {
   if (solution.status === "candidates") {
     return {
       level: "info",
@@ -16,7 +18,7 @@ export function createIntentSolutionNotification(solution: any): IntentSolutionN
   if (solution.status === "noMatchingRisk") {
     return {
       level: "info",
-      message: `No obvious visibility risk found for ${solution.intent.signal} in the current simple rules.`
+      message: `No obvious visibility risk found for ${solution.intent.signal} in the current rules.`
     };
   }
 

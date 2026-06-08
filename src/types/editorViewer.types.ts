@@ -1,6 +1,26 @@
+import type { PatchCandidate } from "./patch.types";
 import type { ColorHexMap, ColorSignalRole, VisibilityRisk } from "./signal.types";
 
 export type EditorViewerSampleKind = "syntax" | "diagnostic" | "diff";
+export type CalibrationIntentSource = "viewerClick";
+export type CalibrationIntentSeverity = "unspecified";
+export type IntentSolutionStatus = "noMatchingRisk" | "noCandidate" | "candidates";
+
+export interface CalibrationIntent {
+  source: CalibrationIntentSource;
+  signal: ColorSignalRole;
+  sampleId: string;
+  targetId: string;
+  severity: CalibrationIntentSeverity;
+  message: string;
+}
+
+export interface IntentSolution {
+  intent: CalibrationIntent;
+  status: IntentSolutionStatus;
+  risks: VisibilityRisk[];
+  candidates: PatchCandidate[];
+}
 
 export interface EditorViewerRegion {
   id: string;
@@ -9,7 +29,7 @@ export interface EditorViewerRegion {
   text: string;
   color: string;
   backgroundColor?: string;
-  intent: any;
+  intent: CalibrationIntent;
 }
 
 export interface EditorViewerLine {
