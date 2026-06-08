@@ -51,4 +51,6 @@ export interface EditorViewerModel {
   signals: ColorHexMap;
   risks: VisibilityRisk[];
   samples: EditorViewerSample[];
+  afterSamples?: EditorViewerSample[];
+  initialCandidates?: PatchCandidate[];
 }

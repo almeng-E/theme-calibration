@@ -60,7 +60,7 @@ export function createPreviewModel(
 
 
 
-function extractPatchSignals(patchRecipe: PatchRecipe): Partial<ColorHexMap> {
+export function extractPatchSignals(patchRecipe: PatchRecipe): Partial<ColorHexMap> {
   const workbenchCustomizations = findScopedSettings(patchRecipe.settings["workbench.colorCustomizations"]);
   const tokenCustomizations = findScopedSettings(patchRecipe.settings["editor.tokenColorCustomizations"]);
 
@@ -104,12 +104,11 @@ export function renderPreviewHtml(model: PreviewModel): string {
   <title>Color Calibration Preview</title>
   <style>
     :root {
-      color-scheme: dark;
-      --page-bg: #111318;
-      --panel-bg: #1b1f27;
-      --border: #343b48;
-      --muted: #9aa4b2;
-      --text: #f2f4f8;
+      --page-bg: var(--vscode-editor-background, #111318);
+      --panel-bg: var(--vscode-sideBar-background, #1b1f27);
+      --border: var(--vscode-widget-border, #343b48);
+      --muted: var(--vscode-descriptionForeground, #9aa4b2);
+      --text: var(--vscode-editor-foreground, #f2f4f8);
     }
 
     * {
@@ -204,13 +203,31 @@ export function renderPreviewHtml(model: PreviewModel): string {
       color: var(--text);
     }
 
+    .apply-btn {
+      display: inline-block;
+      margin-top: 12px;
+      padding: 6px 14px;
+      background: var(--vscode-button-background, #2f81f7);
+      color: var(--vscode-button-foreground, #ffffff);
+      border: 0;
+      border-radius: 4px;
+      font: inherit;
+      font-weight: 650;
+      vertical-align: middle;
+      cursor: pointer;
+    }
+
+    .apply-btn:focus {
+      outline: 1px solid var(--focus-outline);
+    }
+
     .candidate-badge {
       display: inline-block;
       margin-left: 8px;
       padding: 1px 6px;
       border-radius: 999px;
-      background: #2f81f7;
-      color: #ffffff;
+      background: var(--vscode-button-background, #2f81f7);
+      color: var(--vscode-button-foreground, #ffffff);
       font-size: 11px;
       font-weight: 650;
       vertical-align: middle;

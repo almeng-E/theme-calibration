@@ -1,12 +1,14 @@
 import * as vscode from "vscode";
 import * as crypto from "crypto";
+import { normalizeReportSignals } from "./adapter/vscodeDefaults";
+import type { ColorHexMap } from "./types/signal.types";
 import { CANDIDATE_ROLLBACK_STATE_KEY, COMMAND_IDS, OUTPUT_CHANNEL_NAME } from "./constants";
 import { createIntentSolutionNotification } from "./ui/notificationFormatter";
-import { createEditorViewerModel } from "./ui/diagnosticViewModel";
-import { renderEditorViewerHtml } from "./ui/diagnosticViewHtml";
+import { createEditorViewerModel } from "./ui/editorViewModel";
+import { renderEditorViewerHtml } from "./ui/editorViewHtml";
 import { createPatchCandidates, createPatchRecipeFromCandidates } from "./diagnose/diagnosticEngine";
 import { createIntentSolution } from "./diagnose/intentSolution";
-import { createPreviewModel, renderPreviewHtml } from "./ui/previewHtml";
+import { createPreviewModel, renderPreviewHtml, extractPatchSignals } from "./ui/previewHtml";
 import {
   buildPatchPlan,
   buildRollbackPlan,
@@ -192,7 +194,18 @@ async function handleOpenEditorViewer(
   const candidateRules = await getCandidateRules();
   const probe = await collectThemeSnapshot(vscode, { includeThemeDefinitions: true });
   const report = createThemeSignalReport(probe);
-  const viewerModel = createEditorViewerModel(report);
+
+  // Phase 4: Initial Full Diagnosis for B layer
+  const initialCandidates = createPatchCandidates(report, candidateRules);
+  const patchRecipe = createPatchRecipeFromCandidates(initialCandidates, report.theme.configuredName);
+  
+  const baseSignals = normalizeReportSignals(report.signals);
+  const afterSignalsMap = {
+    ...baseSignals,
+    ...extractPatchSignals(patchRecipe)
+  } as ColorHexMap;
+
+  const viewerModel = createEditorViewerModel(report, afterSignalsMap, initialCandidates);
   const nonce = crypto.randomBytes(16).toString("hex");
 
   openEditorViewerPanel(
