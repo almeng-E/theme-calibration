@@ -1,13 +1,13 @@
 import type {
-  ExtensionMetadata,
-  InstalledTheme,
-  RawThemeData,
-  RawThemeDataSummary,
-  ThemeLoadResult,
-  ThemeRegistration,
-  ThemeRegistrationSummary,
-  TokenColorRule
-} from "../types/theme.types";
+  VscodeExtensionMetadata,
+  VscodeInstalledTheme,
+  VscodeThemeFile,
+  VscodeThemeFileSummary,
+  VscodeThemeLoadResult,
+  VscodeThemeRegistration,
+  VscodeThemeRegistrationSummary,
+  VscodeTokenColorRule
+} from "../adapter/vscode/types";
 import type {
   ThemeCollectionOptions,
   ThemeFileReader,
@@ -22,16 +22,16 @@ import { isPlainObject, normalizeThemePath, getErrorMessage } from "../utils/obj
 export async function collectInstalledThemes(
   extensions: readonly VscodeExtensionInfo[] | undefined,
   options: ThemeCollectionOptions = {}
-): Promise<InstalledTheme[]> {
+): Promise<VscodeInstalledTheme[]> {
   const includeThemeDefinitions = options.includeThemeDefinitions !== false;
   const readThemeTextFile = options.readThemeTextFile;
-  const entries: InstalledTheme[] = [];
+  const entries: VscodeInstalledTheme[] = [];
 
   for (const extension of extensions || []) {
     const themes = getContributedThemes(extension);
 
     for (const theme of themes) {
-      const entry: InstalledTheme = {
+      const entry: VscodeInstalledTheme = {
         extension: toExtensionInfo(extension),
         theme: toThemeRegistrationSummary(theme)
       };
@@ -52,7 +52,7 @@ export async function collectInstalledThemes(
 }
 
 export function isMatchingThemeName(
-  theme: Pick<ThemeRegistrationSummary, "id" | "label">,
+  theme: Pick<VscodeThemeRegistrationSummary, "id" | "label">,
   configuredName: string | undefined
 ): boolean {
   if (!configuredName) {
@@ -70,10 +70,10 @@ export function isMatchingThemeName(
 
 export async function loadThemeFile(
   extension: VscodeExtensionInfo,
-  theme: ThemeRegistration,
+  theme: VscodeThemeRegistration,
   readThemeTextFile: ThemeFileReader,
   seen = new Set<string>()
-): Promise<ThemeLoadResult> {
+): Promise<VscodeThemeLoadResult> {
   if (!theme || !theme.path) {
     return { status: "missing-path" };
   }
@@ -151,7 +151,7 @@ export function resolveRelativeThemePath(themePath: string, includePath: string)
   return resolved.join("/");
 }
 
-function mergeThemeFiles(base: RawThemeData, override: RawThemeData): RawThemeData {
+function mergeThemeFiles(base: VscodeThemeFile, override: VscodeThemeFile): VscodeThemeFile {
   return {
     ...base,
     ...override,
@@ -178,8 +178,8 @@ function isJsonThemePath(themePath: string): boolean {
 // 3. JSONC Parsing
 // ============================================================
 
-export function parseJsonc(text: string): RawThemeData {
-  return JSON.parse(stripTrailingCommas(stripJsonComments(text))) as RawThemeData;
+export function parseJsonc(text: string): VscodeThemeFile {
+  return JSON.parse(stripTrailingCommas(stripJsonComments(text))) as VscodeThemeFile;
 }
 
 export function stripJsonComments(text: string): string {
@@ -293,12 +293,12 @@ export function stripTrailingCommas(text: string): string {
 // 4. Data Extraction & Conversion Helpers
 // ============================================================
 
-function getContributedThemes(extension: VscodeExtensionInfo): ThemeRegistration[] {
+function getContributedThemes(extension: VscodeExtensionInfo): VscodeThemeRegistration[] {
   const themes = extension.packageJSON?.contributes?.themes;
   return Array.isArray(themes) ? themes : [];
 }
 
-function toExtensionInfo(extension: VscodeExtensionInfo): ExtensionMetadata {
+function toExtensionInfo(extension: VscodeExtensionInfo): VscodeExtensionMetadata {
   const packageJson = extension.packageJSON || {};
 
   return {
@@ -313,7 +313,7 @@ function toExtensionInfo(extension: VscodeExtensionInfo): ExtensionMetadata {
   };
 }
 
-function toThemeRegistrationSummary(theme: ThemeRegistration): ThemeRegistrationSummary {
+function toThemeRegistrationSummary(theme: VscodeThemeRegistration): VscodeThemeRegistrationSummary {
   return {
     id: theme.id,
     label: theme.label,
@@ -322,7 +322,7 @@ function toThemeRegistrationSummary(theme: ThemeRegistration): ThemeRegistration
   };
 }
 
-function toThemeFileSummary(definition: RawThemeData | undefined): RawThemeDataSummary | undefined {
+function toThemeFileSummary(definition: VscodeThemeFile | undefined): VscodeThemeFileSummary | undefined {
   if (!definition || typeof definition !== "object") {
     return undefined;
   }
@@ -344,9 +344,9 @@ function countObjectKeys(value: unknown): number {
   return isPlainObject(value) ? Object.keys(value).length : 0;
 }
 
-function toTokenColorArray(value: RawThemeData["tokenColors"]): TokenColorRule[] {
+function toTokenColorArray(value: VscodeThemeFile["tokenColors"]): VscodeTokenColorRule[] {
   if (Array.isArray(value)) {
     return value;
   }
-  return value === undefined ? [] : [value as TokenColorRule];
+  return value === undefined ? [] : [value as VscodeTokenColorRule];
 }

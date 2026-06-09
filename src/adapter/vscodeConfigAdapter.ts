@@ -1,6 +1,6 @@
 import { TextDecoder } from "node:util";
 import { COLOR_CUSTOMIZATION_SETTINGS, SETTINGS_ORDER } from "../constants";
-import type { ThemeEnvironment } from "../types/theme.types";
+import type { VscodeThemeEnvironment } from "./vscode/types";
 import type { ConfigurationSnapshot, ConfigurationUpdate, SettingDictionary } from "../types/patch.types";
 import type {
   ThemeCollectionOptions,
@@ -15,7 +15,7 @@ import { normalizeThemePath, clonePlainSetting } from "../utils/objectUtils";
 export async function collectThemeSnapshot(
   vscode: VscodeReadApis,
   options: ThemeCollectionOptions = {}
-): Promise<ThemeEnvironment> {
+): Promise<VscodeThemeEnvironment> {
   const workbenchConfig = vscode.workspace.getConfiguration("workbench");
   const currentThemeName = workbenchConfig.get<string | undefined>("colorTheme");
   const readThemeTextFile = options.readThemeTextFile || createThemeFileReader(vscode);

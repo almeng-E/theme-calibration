@@ -1,9 +1,9 @@
 import type {
-  InstalledTheme,
-  RawThemeData,
-  ThemeEnvironment,
-  TokenColorRule
-} from "../../types/theme.types";
+  VscodeInstalledTheme,
+  VscodeThemeFile,
+  VscodeThemeEnvironment,
+  VscodeTokenColorRule
+} from "./types";
 import type {
   ThemeColorValue,
   ThemeColorsDto,
@@ -16,7 +16,7 @@ import { createThemeReport } from "../../diagnose/diagnosticService";
 // 1. Main Entry (VS Code probe → ThemeReportDto)
 // ============================================================
 
-export function createThemeSignalReport(probe: Partial<ThemeEnvironment> | undefined): ThemeReportDto {
+export function createThemeSignalReport(probe: Partial<VscodeThemeEnvironment> | undefined): ThemeReportDto {
   const configuredName = probe?.currentTheme?.configuredName;
   const activeKind = probe?.currentTheme?.activeKind;
   const matchedTheme = findLoadedCurrentTheme(probe);
@@ -47,7 +47,7 @@ export function createThemeSignalReport(probe: Partial<ThemeEnvironment> | undef
 // 2. Core Analysis Steps
 // ============================================================
 
-function findLoadedCurrentTheme(probe: Partial<ThemeEnvironment> | undefined): InstalledTheme | undefined {
+function findLoadedCurrentTheme(probe: Partial<VscodeThemeEnvironment> | undefined): VscodeInstalledTheme | undefined {
   const matches = probe?.currentTheme?.matchedInstalledThemes;
   if (!Array.isArray(matches)) {
     return undefined;
@@ -58,7 +58,7 @@ function findLoadedCurrentTheme(probe: Partial<ThemeEnvironment> | undefined): I
   );
 }
 
-export function mapVscodeThemeToColors(definition: RawThemeData): ThemeColorsDto {
+export function mapVscodeThemeToColors(definition: VscodeThemeFile): ThemeColorsDto {
   const colors = definition.colors || {};
   const tokenColors = Array.isArray(definition.tokenColors) ? definition.tokenColors : [];
   const signals: ThemeColorsDto = {};
@@ -118,7 +118,7 @@ function firstColor(colors: Record<string, string>, keys: string[]): ThemeColorV
 }
 
 function findTokenColor(
-  tokenColors: TokenColorRule[],
+  tokenColors: VscodeTokenColorRule[],
   signalName: ThemeColorRole,
   scopeMatcher: (scope: string) => boolean
 ): ThemeColorValue | undefined {

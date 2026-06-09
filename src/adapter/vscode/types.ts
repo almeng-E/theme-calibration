@@ -1,15 +1,15 @@
 // ============================================================
-// Extension / Theme 정보 구조체 및 파싱 결과
+// VS Code / Editor-shaped theme types (port type home)
 // ============================================================
 
-export interface ThemeRegistration {
+export interface VscodeThemeRegistration {
   id?: string;
   label?: string;
   uiTheme?: string;
   path?: string;
 }
 
-export interface ExtensionMetadata {
+export interface VscodeExtensionMetadata {
   id?: string;
   name?: string;
   displayName?: string;
@@ -20,14 +20,14 @@ export interface ExtensionMetadata {
   extensionKind?: unknown;
 }
 
-export interface ThemeRegistrationSummary {
+export interface VscodeThemeRegistrationSummary {
   id?: string;
   label?: string;
   uiTheme?: string;
   path?: string;
 }
 
-export interface TokenColorRule {
+export interface VscodeTokenColorRule {
   scope?: string | string[];
   settings?: {
     foreground?: string;
@@ -36,18 +36,18 @@ export interface TokenColorRule {
   [key: string]: unknown;
 }
 
-export interface RawThemeData {
+export interface VscodeThemeFile {
   name?: string;
   type?: string;
   include?: string;
   semanticHighlighting?: boolean;
   colors?: Record<string, string>;
-  tokenColors?: TokenColorRule[] | Record<string, unknown>;
+  tokenColors?: VscodeTokenColorRule[] | Record<string, unknown>;
   semanticTokenColors?: Record<string, unknown>;
   [key: string]: unknown;
 }
 
-export interface RawThemeDataSummary {
+export interface VscodeThemeFileSummary {
   name?: string;
   type?: string;
   semanticHighlighting?: boolean;
@@ -57,7 +57,7 @@ export interface RawThemeDataSummary {
   semanticTokenColorCount: number;
 }
 
-export type ThemeLoadResult =
+export type VscodeThemeLoadResult =
   | { status: "missing-path" }
   | { status: "include-cycle"; filePath: string }
   | { status: "unsupported-file-type"; filePath: string; reason: string }
@@ -65,20 +65,20 @@ export type ThemeLoadResult =
   | {
       status: "loaded";
       filePath: string;
-      definition: RawThemeData;
-      definitionSummary: RawThemeDataSummary | undefined;
-      include?: ThemeLoadResult;
-      resolvedDefinition: RawThemeData;
-      resolvedDefinitionSummary: RawThemeDataSummary | undefined;
+      definition: VscodeThemeFile;
+      definitionSummary: VscodeThemeFileSummary | undefined;
+      include?: VscodeThemeLoadResult;
+      resolvedDefinition: VscodeThemeFile;
+      resolvedDefinitionSummary: VscodeThemeFileSummary | undefined;
     };
 
-export interface InstalledTheme {
-  extension: ExtensionMetadata;
-  theme: ThemeRegistrationSummary;
-  themeDefinition?: ThemeLoadResult;
+export interface VscodeInstalledTheme {
+  extension: VscodeExtensionMetadata;
+  theme: VscodeThemeRegistrationSummary;
+  themeDefinition?: VscodeThemeLoadResult;
 }
 
-export interface ThemeEnvironment {
+export interface VscodeThemeEnvironment {
   generatedAt: string;
   host: {
     appName?: string;
@@ -90,7 +90,7 @@ export interface ThemeEnvironment {
     configuredName?: string;
     activeKind?: unknown;
     settings: Record<string, { effectiveValue: unknown; inspect: unknown }>;
-    matchedInstalledThemes: InstalledTheme[];
+    matchedInstalledThemes: VscodeInstalledTheme[];
   };
-  installedThemes: InstalledTheme[];
+  installedThemes: VscodeInstalledTheme[];
 }
