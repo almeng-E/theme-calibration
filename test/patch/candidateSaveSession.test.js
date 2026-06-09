@@ -410,6 +410,125 @@ test("computeApplyPlan existingSettings override is non-mutating and honors stal
   assert.deepEqual(overrideSettings, overrideSnapshot);
 });
 
+// ============================================================
+// Phase 4 — per-candidate color override (setColorOverride)
+// ============================================================
+
+const { renderAfterLayerHtml } = require("../../out/ui/afterLayer");
+
+test("setColorOverride changes the applied color: computeApplyPlan + getAcceptedCandidates reflect the OVERRIDE", () => {
+  const report = createCandidateRichReport();
+  const session = new CandidateSaveSession({
+    report,
+    candidates: createCandidates(report),
+    existingSettings: createExistingSettings()
+  });
+
+  session.accept(COMMENT_CANDIDATE_ID);
+  session.setColorOverride(COMMENT_CANDIDATE_ID, "#abcdef");
+
+  const result = session.computeApplyPlan({ now: new Date("2026-06-08T00:00:00.000Z") });
+
+  assert.equal(result.status, "ready");
+  assert.equal(
+    result.patchPlan.nextSettings["editor.tokenColorCustomizations"]["[Default Dark+]"].comments,
+    "#abcdef"
+  );
+
+  const accepted = session.getAcceptedCandidates();
+  const overridden = accepted.find((c) => c.id === COMMENT_CANDIDATE_ID);
+  assert.equal(overridden.suggestedColor, "#abcdef");
+});
+
+test("setColorOverride AUTO-ACCEPTS a pending candidate", () => {
+  const report = createCandidateRichReport();
+  const session = new CandidateSaveSession({
+    report,
+    candidates: createCandidates(report),
+    existingSettings: createExistingSettings()
+  });
+
+  assert.equal(session.getStatus(STRING_CANDIDATE_ID), "pending");
+  session.setColorOverride(STRING_CANDIDATE_ID, "#123456");
+  assert.equal(session.getStatus(STRING_CANDIDATE_ID), "accepted");
+
+  const result = session.computeApplyPlan({ now: new Date("2026-06-08T00:00:00.000Z") });
+  assert.equal(result.status, "ready");
+  assert.equal(
+    result.patchPlan.nextSettings["editor.tokenColorCustomizations"]["[Default Dark+]"].strings,
+    "#123456"
+  );
+});
+
+test("setColorOverride throws on invalid hex and on unknown id", () => {
+  const report = createCandidateRichReport();
+  const session = new CandidateSaveSession({
+    report,
+    candidates: createCandidates(report),
+    existingSettings: createExistingSettings()
+  });
+
+  assert.throws(() => session.setColorOverride(COMMENT_CANDIDATE_ID, "not-a-color"), /hex|color/i);
+  assert.throws(() => session.setColorOverride("does-not-exist", "#abcdef"), /unknown|not found|candidate/i);
+});
+
+test("reject after override -> excluded from plan (override dormant); re-accept re-applies the override color", () => {
+  const report = createCandidateRichReport();
+  const session = new CandidateSaveSession({
+    report,
+    candidates: createCandidates(report),
+    existingSettings: createExistingSettings()
+  });
+
+  session.setColorOverride(COMMENT_CANDIDATE_ID, "#abcdef");
+  session.reject(COMMENT_CANDIDATE_ID);
+
+  const rejected = session.computeApplyPlan({ now: new Date("2026-06-08T00:00:00.000Z") });
+  assert.equal(rejected.status, "noStagedCandidates");
+  // override is preserved while dormant
+  assert.equal(session.getColorOverride(COMMENT_CANDIDATE_ID), "#abcdef");
+
+  session.accept(COMMENT_CANDIDATE_ID);
+  const reaccepted = session.computeApplyPlan({ now: new Date("2026-06-08T00:00:00.000Z") });
+  assert.equal(reaccepted.status, "ready");
+  assert.equal(
+    reaccepted.patchPlan.nextSettings["editor.tokenColorCustomizations"]["[Default Dark+]"].comments,
+    "#abcdef"
+  );
+});
+
+test("setColorOverride does NOT mutate the original candidate objects", () => {
+  const report = createCandidateRichReport();
+  const candidates = createCandidates(report);
+  const originalColor = candidates.find((c) => c.id === COMMENT_CANDIDATE_ID).suggestedColor;
+
+  const session = new CandidateSaveSession({
+    report,
+    candidates,
+    existingSettings: createExistingSettings()
+  });
+
+  session.setColorOverride(COMMENT_CANDIDATE_ID, "#abcdef");
+
+  // the source array's candidate object is untouched
+  assert.equal(candidates.find((c) => c.id === COMMENT_CANDIDATE_ID).suggestedColor, originalColor);
+  assert.notEqual(originalColor, "#abcdef");
+});
+
+test("preview parity: renderAfterLayerHtml(report, getAcceptedCandidates()) reflects the override color", () => {
+  const report = createCandidateRichReport();
+  const session = new CandidateSaveSession({
+    report,
+    candidates: createCandidates(report),
+    existingSettings: createExistingSettings()
+  });
+
+  session.setColorOverride(COMMENT_CANDIDATE_ID, "#abcdef");
+
+  const html = renderAfterLayerHtml(report, session.getAcceptedCandidates());
+  assert.match(html, /#abcdef/i);
+});
+
 function createCandidates(report) {
   const candidates = createPatchCandidates(report, [...LOW_CONTRAST_MAPPINGS, ...SIMILAR_SIGNAL_MAPPINGS]);
   assert.ok(

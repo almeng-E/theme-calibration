@@ -363,7 +363,33 @@ export function renderEditorViewerHtml(model: EditorViewerModel, nonce?: string)
         var suggested = document.createElement("p");
         suggested.className = "candidate-meta";
         suggested.appendChild(color);
-        suggested.appendChild(document.createTextNode(candidate.suggestedColor));
+
+        var colorLabel = document.createTextNode(candidate.suggestedColor);
+        suggested.appendChild(colorLabel);
+
+        // Phase 4: native color picker. Fine-tuning a color AUTO-ACCEPTS the
+        // candidate (custom color = opting in), mirrored optimistically here
+        // and authoritatively in the model via setCandidateColor.
+        var colorInput = document.createElement("input");
+        colorInput.type = "color";
+        colorInput.className = "candidate-color-input";
+        colorInput.setAttribute("data-candidate-color", candidate.id);
+        colorInput.value = candidate.suggestedColor;
+        colorInput.addEventListener("change", function () {
+          var nextColor = colorInput.value;
+          // mirror the new color into the visible swatch + label
+          color.style.background = nextColor;
+          colorLabel.textContent = nextColor;
+          // optimistic auto-accept so the Accept button reflects the opt-in
+          UIState.candidateStatus[candidate.id] = 'accepted';
+          syncUI();
+          vscode.postMessage({
+            type: "setCandidateColor",
+            candidateId: candidate.id,
+            color: nextColor
+          });
+        });
+        suggested.appendChild(colorInput);
 
         var actions = document.createElement("div");
         actions.className = "candidate-actions";

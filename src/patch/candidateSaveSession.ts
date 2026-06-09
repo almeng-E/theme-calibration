@@ -1,6 +1,7 @@
 import { createCandidatePatchApplyPlan } from "./patchService";
 import type { CandidatePatchApplyPlan } from "./patchService";
 import { isReportStale } from "./reportStaleness";
+import { parseHexColor } from "../utils/colorUtils";
 import type { ConfigurationSnapshot, PatchCandidate } from "../types/patch.types";
 import type { ThemeAnalysisReport } from "../types/signal.types";
 
@@ -75,6 +76,13 @@ export class CandidateSaveSession {
   // Staged decisions. Absence = "pending". Order preserved for stable plans.
   private readonly statuses = new Map<string, Exclude<CandidateStageStatus, "pending">>();
 
+  // Phase 4 — per-candidate color overrides (candidateId -> hex).
+  // An override replaces a candidate's suggestedColor in the EFFECTIVE view
+  // (preview + save). It is stored independently of staging: a reject leaves
+  // the override DORMANT (the candidate is simply not accepted), and a later
+  // accept re-applies it. The original candidate objects are never mutated.
+  private readonly colorOverrides = new Map<string, string>();
+
   constructor(input: CandidateSaveSessionInput) {
     this.report = input.report;
     this.candidates = [...input.candidates];
@@ -111,6 +119,33 @@ export class CandidateSaveSession {
     this.statuses.set(candidateId, "rejected");
   }
 
+  /**
+   * Phase 4: set a per-candidate color override and AUTO-ACCEPT the candidate.
+   *
+   * Providing a custom color is treated as opting in, so this stages the
+   * candidate as "accepted" (the confirmed UX rule). A later reject(id) still
+   * lets the user opt out — the override stays stored but DORMANT while
+   * rejected, and is re-applied automatically if the candidate is accepted
+   * again. The override replaces suggestedColor in the EFFECTIVE candidate
+   * view used by BOTH getAcceptedCandidates and computeApplyPlan.
+   *
+   * Validates the id (throws on unknown, like accept/reject) and the hex
+   * (delegates to the pure parseHexColor validator, which throws on invalid).
+   */
+  setColorOverride(candidateId: string, hex: string): void {
+    this.assertKnownCandidate(candidateId, "setColorOverride");
+    // Throws "Unsupported hex color: ..." on invalid input.
+    parseHexColor(hex);
+    this.colorOverrides.set(candidateId, hex);
+    // AUTO-ACCEPT: a custom color = opting in.
+    this.statuses.set(candidateId, "accepted");
+  }
+
+  /** The stored color override for a candidate, or undefined if none. */
+  getColorOverride(candidateId: string): string | undefined {
+    return this.colorOverrides.get(candidateId);
+  }
+
   /** The staged status of a candidate ("pending" if no decision yet). */
   getStatus(candidateId: string): CandidateStageStatus {
     this.assertKnownCandidate(candidateId, "getStatus");
@@ -130,7 +165,23 @@ export class CandidateSaveSession {
    * into private staging. Never mutates state.
    */
   getAcceptedCandidates(): PatchCandidate[] {
-    return this.candidates.filter((candidate) => this.statuses.get(candidate.id) === "accepted");
+    return this.candidates
+      .filter((candidate) => this.statuses.get(candidate.id) === "accepted")
+      .map((candidate) => this.toEffectiveCandidate(candidate));
+  }
+
+  /**
+   * PURE: apply a stored color override (if any) to a candidate, returning a
+   * NEW object with suggestedColor replaced. Never mutates the original.
+   * This is the SINGLE overlay point reused by getAcceptedCandidates and
+   * computeApplyPlan so the preview and the saved patch always agree.
+   */
+  private toEffectiveCandidate(candidate: PatchCandidate): PatchCandidate {
+    const override = this.colorOverrides.get(candidate.id);
+    if (override === undefined) {
+      return candidate;
+    }
+    return { ...candidate, suggestedColor: override };
   }
 
   /**
@@ -149,7 +200,9 @@ export class CandidateSaveSession {
 
     const applyPlan = createCandidatePatchApplyPlan({
       report: this.report,
-      candidates: this.candidates,
+      // EFFECTIVE candidates: color overrides applied via the single overlay,
+      // so the saved patch matches the live preview exactly.
+      candidates: this.candidates.map((candidate) => this.toEffectiveCandidate(candidate)),
       selectedCandidateIds: acceptedIds,
       existingSettings: input.existingSettings ?? this.existingSettings,
       now: input.now

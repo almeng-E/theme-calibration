@@ -448,6 +448,25 @@ function openEditorViewerPanel(
         return;
       }
 
+      if (message?.type === "setCandidateColor") {
+        const candidateId = typeof message.candidateId === "string" ? message.candidateId : "";
+        const color = typeof message.color === "string" ? message.color : "";
+        if (!candidateId || !color) return;
+
+        // STAGE ONLY: setColorOverride auto-accepts + records the override.
+        // NO settings write. Unknown id / invalid hex are ignored defensively
+        // (the model throws; we swallow like the accept/reject guards).
+        try {
+          session.setColorOverride(candidateId, color);
+        } catch {
+          return;
+        }
+        // postAfterLayerPreview uses getAcceptedCandidates() (override-applied),
+        // so the live B-layer reflects the new color immediately.
+        await postAfterLayerPreview();
+        return;
+      }
+
       if (message?.type === "saveCandidates") {
         // FRESH 설정/리포트를 읽어 일괄 적용 계획을 계산합니다 (WIRING ONLY).
         const freshSettings = readCurrentPatchableSettings(vscode, target);

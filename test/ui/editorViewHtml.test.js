@@ -203,6 +203,29 @@ test("renderEditorViewerHtml handles saveResult ok:false with the three distinct
   assert.match(html, /resetSaveButton\(\);/);
 });
 
+test("renderEditorViewerHtml renders a native color input in the candidate template", () => {
+  const html = renderEditorViewerHtml(createEditorViewerModel(createFakeReport("Sample Dark")), "testnonce");
+
+  assert.match(html, /type = "color"/);
+  assert.match(html, /candidate-color-input/);
+  assert.match(html, /candidate\.suggestedColor/);
+});
+
+test("renderEditorViewerHtml color input change posts setCandidateColor with candidateId and color", () => {
+  const html = renderEditorViewerHtml(createEditorViewerModel(createFakeReport("Sample Dark")), "testnonce");
+
+  assert.match(html, /type: "setCandidateColor"/);
+  assert.match(html, /candidateId: candidate\.id/);
+  assert.match(html, /color:/);
+});
+
+test("renderEditorViewerHtml color input change auto-accepts the candidate in UIState", () => {
+  const html = renderEditorViewerHtml(createEditorViewerModel(createFakeReport("Sample Dark")), "testnonce");
+
+  // The change handler optimistically mirrors the model's auto-accept rule.
+  assert.match(html, /UIState\.candidateStatus\[candidate\.id\] = 'accepted'/);
+});
+
 function createFakeReport(themeName) {
   return {
     theme: {
