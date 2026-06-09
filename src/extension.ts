@@ -25,7 +25,7 @@ import {
   createDefaultCandidateRuleUri,
   loadCandidateRulesFromUri
 } from "./adapter/candidateRuleAdapter";
-import { createThemeSignalReport } from "./diagnose/diagnosticService";
+import { createThemeSignalReport } from "./adapter/vscode/themeColorMapper";
 import { getErrorMessage } from "./utils/objectUtils";
 import { applyPatchPlanWithRollback } from "./patch/patchApplicationService";
 import type { CandidateDto, RollbackSnapshotDto } from "./types/patch.types";
