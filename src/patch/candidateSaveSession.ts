@@ -37,6 +37,13 @@ export interface ComputeApplyPlanInput {
    * Omit to skip the staleness guard (e.g. unit/preview contexts).
    */
   currentReport?: ThemeAnalysisReport;
+  /**
+   * Fresh existing settings read at save time. When provided, the batch plan
+   * is computed against this snapshot instead of the one captured by the
+   * constructor (the live settings may have drifted since the viewer opened).
+   * Omit to fall back to the constructor's existingSettings.
+   */
+  existingSettings?: ConfigurationSnapshot;
   now?: Date;
 }
 
@@ -59,18 +66,37 @@ export type ComputeApplyPlanResult =
 
 export class CandidateSaveSession {
   private readonly report: ThemeAnalysisReport;
-  private readonly candidates: readonly PatchCandidate[];
+  // Mutable: registerCandidates may append dynamically-surfaced candidates.
+  // Insertion order is preserved (existing first, then registered).
+  private candidates: PatchCandidate[];
   private readonly existingSettings: ConfigurationSnapshot;
-  private readonly candidateIds: ReadonlySet<string>;
+  private readonly candidateIds: Set<string>;
 
   // Staged decisions. Absence = "pending". Order preserved for stable plans.
   private readonly statuses = new Map<string, Exclude<CandidateStageStatus, "pending">>();
 
   constructor(input: CandidateSaveSessionInput) {
     this.report = input.report;
-    this.candidates = input.candidates;
+    this.candidates = [...input.candidates];
     this.existingSettings = input.existingSettings;
-    this.candidateIds = new Set(input.candidates.map((candidate) => candidate.id));
+    this.candidateIds = new Set(this.candidates.map((candidate) => candidate.id));
+  }
+
+  /**
+   * Merge dynamically-surfaced candidates into the known set. Dedup by id:
+   * if an id already exists, the EXISTING candidate object is kept (the
+   * initial/engine version is authoritative) and the duplicate is ignored.
+   * New ids are appended in the given order (existing first, then registered).
+   * Idempotent; never alters already-staged decisions. PURE: no I/O.
+   */
+  registerCandidates(candidates: readonly PatchCandidate[]): void {
+    for (const candidate of candidates) {
+      if (this.candidateIds.has(candidate.id)) {
+        continue;
+      }
+      this.candidateIds.add(candidate.id);
+      this.candidates.push(candidate);
+    }
   }
 
   /** Stage a candidate as accepted. Idempotent; flips a prior reject. */
@@ -116,7 +142,7 @@ export class CandidateSaveSession {
       report: this.report,
       candidates: this.candidates,
       selectedCandidateIds: acceptedIds,
-      existingSettings: this.existingSettings,
+      existingSettings: input.existingSettings ?? this.existingSettings,
       now: input.now
     });
 

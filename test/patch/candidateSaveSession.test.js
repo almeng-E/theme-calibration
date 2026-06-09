@@ -221,6 +221,170 @@ test("getStatus reflects staged state and flips on accept/reject", () => {
   assert.equal(session.getStatus(COMMENT_CANDIDATE_ID), "rejected");
 });
 
+// ============================================================
+// Phase 3a — registerCandidates + computeApplyPlan existingSettings override
+// ============================================================
+
+test("registerCandidates: a previously-unknown candidate id becomes a valid accept target and reaches the plan", () => {
+  const report = createCandidateRichReport();
+  const all = createCandidates(report);
+  const initialSubset = all.filter((c) => c.id === COMMENT_CANDIDATE_ID);
+  const rest = all.filter((c) => c.id !== COMMENT_CANDIDATE_ID);
+
+  const session = new CandidateSaveSession({
+    report,
+    candidates: initialSubset,
+    existingSettings: createExistingSettings()
+  });
+
+  session.registerCandidates(rest);
+  session.accept(STRING_CANDIDATE_ID);
+
+  const result = session.computeApplyPlan({ now: new Date("2026-06-08T00:00:00.000Z") });
+
+  assert.equal(result.status, "ready");
+  assert.equal(
+    result.patchPlan.nextSettings["editor.tokenColorCustomizations"]["[Default Dark+]"].strings,
+    "#b7f2a1"
+  );
+});
+
+test("accept on an unknown id throws BEFORE registering, succeeds AFTER registering", () => {
+  const report = createCandidateRichReport();
+  const all = createCandidates(report);
+  const initialSubset = all.filter((c) => c.id === COMMENT_CANDIDATE_ID);
+  const rest = all.filter((c) => c.id !== COMMENT_CANDIDATE_ID);
+
+  const session = new CandidateSaveSession({
+    report,
+    candidates: initialSubset,
+    existingSettings: createExistingSettings()
+  });
+
+  assert.throws(() => session.accept(STRING_CANDIDATE_ID), /unknown|not found|candidate/i);
+
+  session.registerCandidates(rest);
+  assert.doesNotThrow(() => session.accept(STRING_CANDIDATE_ID));
+  assert.equal(session.getStatus(STRING_CANDIDATE_ID), "accepted");
+});
+
+test("registerCandidates dedups by id and does NOT disturb existing staged decisions", () => {
+  const report = createCandidateRichReport();
+  const all = createCandidates(report);
+
+  const session = new CandidateSaveSession({
+    report,
+    candidates: all,
+    existingSettings: createExistingSettings()
+  });
+
+  session.accept(COMMENT_CANDIDATE_ID);
+  const acceptedBefore = session.getAcceptedIds().slice();
+
+  // register a set that re-includes the already-known COMMENT id
+  session.registerCandidates(all);
+
+  assert.equal(session.getStatus(COMMENT_CANDIDATE_ID), "accepted");
+  assert.deepEqual(session.getAcceptedIds(), acceptedBefore);
+});
+
+test("registerCandidates: getAcceptedIds returns existing-first then registration-order", () => {
+  const report = createCandidateRichReport();
+  const all = createCandidates(report);
+  const initialSubset = all.filter((c) => c.id === COMMENT_CANDIDATE_ID);
+  const rest = all.filter((c) => c.id !== COMMENT_CANDIDATE_ID);
+
+  const session = new CandidateSaveSession({
+    report,
+    candidates: initialSubset,
+    existingSettings: createExistingSettings()
+  });
+
+  session.registerCandidates(rest);
+
+  // accept registered first, existing last — order must STILL be existing-first
+  session.accept(STRING_CANDIDATE_ID);
+  session.accept(COMMENT_CANDIDATE_ID);
+
+  assert.deepEqual(session.getAcceptedIds(), [COMMENT_CANDIDATE_ID, STRING_CANDIDATE_ID]);
+});
+
+test("computeApplyPlan existingSettings override: rollback/merge reflect the override, omitting falls back to constructor", () => {
+  const report = createCandidateRichReport();
+  const session = new CandidateSaveSession({
+    report,
+    candidates: createCandidates(report),
+    existingSettings: createExistingSettings()
+  });
+
+  session.accept(COMMENT_CANDIDATE_ID);
+
+  const overrideSettings = createExistingSettings();
+  overrideSettings["editor.tokenColorCustomizations"]["[Default Dark+]"].comments = "#abcdef";
+
+  const withOverride = session.computeApplyPlan({
+    now: new Date("2026-06-08T00:00:00.000Z"),
+    existingSettings: overrideSettings
+  });
+  const withoutOverride = session.computeApplyPlan({
+    now: new Date("2026-06-08T00:00:00.000Z")
+  });
+
+  assert.equal(withOverride.status, "ready");
+  assert.equal(withoutOverride.status, "ready");
+
+  // rollback snapshot reflects the LIVE/override existing color, not the constructor snapshot
+  assert.equal(
+    withOverride.patchPlan.rollbackSnapshot.settings["editor.tokenColorCustomizations"]["[Default Dark+]"].comments,
+    "#abcdef"
+  );
+  assert.equal(
+    withoutOverride.patchPlan.rollbackSnapshot.settings["editor.tokenColorCustomizations"]["[Default Dark+]"].comments,
+    "#6a9955"
+  );
+  assert.notDeepEqual(
+    withOverride.patchPlan.rollbackSnapshot.settings,
+    withoutOverride.patchPlan.rollbackSnapshot.settings
+  );
+});
+
+test("computeApplyPlan existingSettings override is non-mutating and honors staleReport/noStagedCandidates ordering", () => {
+  const report = createCandidateRichReport();
+  const session = new CandidateSaveSession({
+    report,
+    candidates: createCandidates(report),
+    existingSettings: createExistingSettings()
+  });
+
+  const overrideSettings = createExistingSettings();
+
+  // noStagedCandidates: override present but nothing accepted
+  assert.equal(
+    session.computeApplyPlan({ existingSettings: overrideSettings }).status,
+    "noStagedCandidates"
+  );
+
+  session.accept(COMMENT_CANDIDATE_ID);
+
+  // staleReport beats override-based plan
+  assert.deepEqual(
+    session.computeApplyPlan({
+      existingSettings: overrideSettings,
+      currentReport: createCurrentThemeReport("Light+"),
+      now: new Date("2026-06-08T00:00:00.000Z")
+    }),
+    { status: "staleReport" }
+  );
+
+  // non-mutating: the override object is not mutated by plan computation
+  const overrideSnapshot = JSON.parse(JSON.stringify(overrideSettings));
+  session.computeApplyPlan({
+    existingSettings: overrideSettings,
+    now: new Date("2026-06-08T00:00:00.000Z")
+  });
+  assert.deepEqual(overrideSettings, overrideSnapshot);
+});
+
 function createCandidates(report) {
   const candidates = createPatchCandidates(report, [...LOW_CONTRAST_MAPPINGS, ...SIMILAR_SIGNAL_MAPPINGS]);
   assert.ok(
