@@ -79,6 +79,88 @@ test("renderEditorViewerHtml falls back unsafe css color values", () => {
   assert.match(html, /style="color:#ffffff; background:#ffffff;"/);
 });
 
+test("renderEditorViewerHtml emits UTF-8 charset and English lang guard", () => {
+  // charset=UTF-8 is the DURABLE guard: Korean/multilingual content must never break.
+  // lang="en" is the DELIBERATE current state (project is preparing a global service in
+  // English); locking it catches an accidental flip back to another locale.
+  const html = renderEditorViewerHtml(createEditorViewerModel(createFakeReport("Sample Dark")));
+
+  assert.match(html, /<meta charset="UTF-8">/);
+  assert.match(html, /<html lang="en">/);
+});
+
+test("renderEditorViewerHtml renders top bar tab buttons, one per sample", () => {
+  const html = renderEditorViewerHtml(createEditorViewerModel(createFakeReport("Sample Dark")));
+
+  // tab-button / data-tab are the real anchors syncUI() queries to switch samples.
+  assert.match(html, /class="tab-button active"/);
+  assert.match(html, /data-tab="python-sample"/);
+  assert.match(html, /data-tab="ts-sample"/);
+  assert.match(html, /data-tab="html-sample"/);
+  assert.match(html, /data-tab="diagnostic-sample"/);
+  assert.match(html, /data-tab="diff-sample"/);
+});
+
+test("renderEditorViewerHtml emits the slider/split structure ids and classes", () => {
+  const html = renderEditorViewerHtml(createEditorViewerModel(createFakeReport("Sample Dark")));
+
+  // These ids/classes are queried by id in the inline JS (getElementById / querySelector).
+  // Locking them prevents a refactor from silently breaking the slider/split view.
+  assert.match(html, /id="slider-container"/);
+  assert.match(html, /id="layer-a"/);
+  assert.match(html, /id="layer-b"/);
+  assert.match(html, /id="slider-handle"/);
+  assert.match(html, /class="slider-wrapper"/);
+  // Per-sample anchors used by the JS to show/hide the active sample.
+  assert.match(html, /data-sample-id="python-sample"/);
+});
+
+test("renderEditorViewerHtml renders Reject button wiring for solution candidates", () => {
+  const html = renderEditorViewerHtml(createEditorViewerModel(createFakeReport("Sample Dark")), "testnonce");
+
+  assert.match(html, /rejectBtn\.innerHTML = "✗ Reject"/);
+  assert.match(html, /type: "rejectCandidatePatch"/);
+  assert.match(html, /candidateId: candidate\.id/);
+});
+
+test("renderEditorViewerHtml message listener handles updateAfterHtml into layer-B content", () => {
+  const html = renderEditorViewerHtml(createEditorViewerModel(createFakeReport("Sample Dark")), "testnonce");
+
+  assert.match(html, /message\.type === "updateAfterHtml"/);
+  assert.match(html, /document\.querySelector\("#layer-b \.editor-content"\)/);
+  assert.match(html, /layerBContent\.innerHTML = message\.html/);
+});
+
+test("renderEditorViewerHtml emits CSP meta and script nonce only when a nonce is provided", () => {
+  const withNonce = renderEditorViewerHtml(createEditorViewerModel(createFakeReport("Sample Dark")), "somenonce");
+  assert.match(withNonce, /Content-Security-Policy/);
+  assert.match(withNonce, /script-src 'nonce-somenonce'/);
+  assert.match(withNonce, /<script nonce="somenonce">/);
+
+  const withoutNonce = renderEditorViewerHtml(createEditorViewerModel(createFakeReport("Sample Dark")));
+  assert.doesNotMatch(withoutNonce, /Content-Security-Policy/);
+  assert.doesNotMatch(withoutNonce, /nonce=/);
+});
+
+test("renderEditorViewerHtml seeds initialCandidates into the inline script", () => {
+  const model = createEditorViewerModel(createFakeReport("Sample Dark"));
+  model.initialCandidates = [
+    {
+      id: "cand-seed-1",
+      settingKey: "editor.foreground",
+      suggestedColor: "#abcdef",
+      reason: "seed reason",
+      signals: ["comment"]
+    }
+  ];
+
+  const html = renderEditorViewerHtml(model);
+
+  // initialCandidatesJson is injected verbatim; locking the initial render path.
+  assert.match(html, /"id":"cand-seed-1"/);
+  assert.match(html, /"suggestedColor":"#abcdef"/);
+});
+
 function createFakeReport(themeName) {
   return {
     theme: {
