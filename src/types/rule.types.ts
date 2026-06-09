@@ -1,22 +1,22 @@
 import type { TargetSettingId } from "./patch.types";
-import type { ColorSignalRole } from "./signal.types";
+import type { ThemeColorRole } from "./signal.types";
 
 export type CandidateRuleType = "lowContrast" | "similarSignal";
 
-export interface CandidateMappingRule {
+export interface CandidateRuleDto {
   type: CandidateRuleType;
-  signals: ColorSignalRole[];
+  signals: ThemeColorRole[];
   settingId: TargetSettingId;
   settingKey: string;
   suggestedColor: string;
   confidence: number;
 }
 
-export interface CandidateRuleBundle {
+export interface CandidateRuleBundleDto {
   version: 1;
-  candidateMappings: CandidateMappingRule[];
+  candidateMappings: CandidateRuleDto[];
 }
 
 export type CandidateRuleParseResult =
-  | { status: "valid"; bundle: CandidateRuleBundle; rules: CandidateMappingRule[] }
+  | { status: "valid"; bundle: CandidateRuleBundleDto; rules: CandidateRuleDto[] }
   | { status: "invalid"; errors: string[]; rules: [] };

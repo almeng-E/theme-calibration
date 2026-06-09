@@ -2,7 +2,7 @@
 // 패치(Patch) & 프리뷰(Preview)
 // ============================================================
 
-import type { ColorSignalRole } from "./signal.types";
+import type { ThemeColorRole } from "./signal.types";
 
 export type SettingDictionary = Record<string, unknown>;
 
@@ -11,7 +11,7 @@ export type TargetSettingId =
   | "editor.tokenColorCustomizations"
   | "editor.semanticTokenColorCustomizations";
 
-export interface PatchRecipe {
+export interface PatchRecipeDto {
   id: string;
   description: string;
   settings: Record<TargetSettingId, SettingDictionary>;
@@ -19,17 +19,17 @@ export interface PatchRecipe {
 
 export type PatchScope = "global" | "theme";
 
-export interface CandidateSettingChange {
+export interface CandidateChangeDto {
   settingId: TargetSettingId;
   settingKey: string;
   suggestedColor: string;
 }
 
-export interface PatchCandidate extends CandidateSettingChange {
+export interface CandidateDto extends CandidateChangeDto {
   id: string;
   riskType: string;
-  signals: ColorSignalRole[];
-  currentSignals: Partial<Record<ColorSignalRole, string>>;
+  signals: ThemeColorRole[];
+  currentSignals: Partial<Record<ThemeColorRole, string>>;
   reason: string;
   scope: PatchScope;
   confidence: number;
@@ -43,20 +43,20 @@ export interface ConfigurationUpdate {
   value: SettingDictionary;
 }
 
-export interface RollbackSnapshot {
+export interface RollbackSnapshotDto {
   createdAt: string;
   recipeId: string;
   settings: ConfigurationSnapshot;
 }
 
-export interface PatchExecutionPlan {
+export interface PatchPlanDto {
   recipeId: string;
   nextSettings: ConfigurationSnapshot;
-  rollbackSnapshot: RollbackSnapshot;
+  rollbackSnapshot: RollbackSnapshotDto;
   settingsUpdates: ConfigurationUpdate[];
 }
 
-export interface RollbackExecutionPlan {
+export interface RollbackPlanDto {
   recipeId: string;
   createdAt: string;
   settingsUpdates: ConfigurationUpdate[];

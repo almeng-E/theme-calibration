@@ -1,16 +1,16 @@
-import type { ColorHexMap, VisibilityRisk } from "./signal.types";
-import type { PatchCandidate } from "./patch.types";
+import type { ThemeColorHexMap, RiskDto } from "./signal.types";
+import type { CandidateDto } from "./patch.types";
 
-export interface PreviewPane {
+export interface PreviewPaneDto {
   title: string;
-  signals: ColorHexMap;
+  signals: ThemeColorHexMap;
 }
 
-export interface PreviewModel {
+export interface PreviewModelDto {
   themeName: string;
-  before: PreviewPane;
-  after: PreviewPane;
-  risks: VisibilityRisk[];
-  candidates?: PatchCandidate[];
+  before: PreviewPaneDto;
+  after: PreviewPaneDto;
+  risks: RiskDto[];
+  candidates?: CandidateDto[];
   selectedCandidateId?: string;
 }

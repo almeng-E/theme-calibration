@@ -1,19 +1,19 @@
-import type { ColorHexMap, ColorSignalRole } from "../../types/signal.types";
+import type { ThemeColorHexMap, ThemeColorRole } from "../../types/signal.types";
 import type {
-  CalibrationIntent,
-  EditorViewerLine,
-  EditorViewerRegion,
-  EditorViewerSample,
-  EditorViewerSampleKind
+  IntentDto,
+  ViewerLineDto,
+  ViewerRegionDto,
+  ViewerSampleDto,
+  ViewerSampleKind
 } from "../../types/editorViewer.types";
 
 export function createSample(
   id: string,
   title: string,
-  kind: EditorViewerSampleKind,
-  signals: ColorHexMap,
-  lines: EditorViewerLine[]
-): EditorViewerSample {
+  kind: ViewerSampleKind,
+  signals: ThemeColorHexMap,
+  lines: ViewerLineDto[]
+): ViewerSampleDto {
   return {
     id,
     title,
@@ -24,7 +24,7 @@ export function createSample(
   };
 }
 
-export function createLine(id: string, regions: EditorViewerRegion[]): EditorViewerLine {
+export function createLine(id: string, regions: ViewerRegionDto[]): ViewerLineDto {
   return { id, regions };
 }
 
@@ -33,11 +33,11 @@ export function createRegion(
   id: string,
   label: string,
   text: string,
-  signal: ColorSignalRole,
+  signal: ThemeColorRole,
   color: string,
   backgroundColor?: string
-): EditorViewerRegion {
-  const intent: CalibrationIntent = {
+): ViewerRegionDto {
+  const intent: IntentDto = {
     source: "viewerClick",
     signal,
     sampleId,

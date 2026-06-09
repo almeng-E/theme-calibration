@@ -1,8 +1,8 @@
-import type { PatchExecutionPlan, RollbackSnapshot, ConfigurationUpdate } from "../types/patch.types";
+import type { PatchPlanDto, RollbackSnapshotDto, ConfigurationUpdate } from "../types/patch.types";
 
 export interface ApplyPatchPlanWithRollbackInput {
-  patchPlan: Pick<PatchExecutionPlan, "rollbackSnapshot" | "settingsUpdates">;
-  saveRollback: (snapshot: RollbackSnapshot) => PromiseLike<void>;
+  patchPlan: Pick<PatchPlanDto, "rollbackSnapshot" | "settingsUpdates">;
+  saveRollback: (snapshot: RollbackSnapshotDto) => PromiseLike<void>;
   writeSettings: (updates: ConfigurationUpdate[]) => PromiseLike<void>;
 }
 

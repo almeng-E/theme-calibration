@@ -1,11 +1,11 @@
-import type { EditorViewerModel } from "../types/editorViewer.types";
+import type { ViewerModelDto } from "../types/editorViewer.types";
 import { escapeHtml } from "./htmlUtils";
 import { renderTopBar } from "./components/topBar";
 import { renderSliderArea } from "./components/sliderArea";
 import { renderCandidatePanel } from "./components/candidatePanel";
 import { viewerCss } from "./viewerCss";
 
-export function renderEditorViewerHtml(model: EditorViewerModel, nonce?: string): string {
+export function renderEditorViewerHtml(model: ViewerModelDto, nonce?: string): string {
   const initialCandidatesJson = JSON.stringify(model.initialCandidates || []);
   const nonceAttr = nonce ? ` nonce="${escapeHtml(nonce)}"` : "";
   const cspMeta = nonce

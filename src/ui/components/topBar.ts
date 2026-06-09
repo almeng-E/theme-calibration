@@ -1,7 +1,7 @@
-import type { EditorViewerSample } from "../../types/editorViewer.types";
+import type { ViewerSampleDto } from "../../types/editorViewer.types";
 import { escapeHtml } from "../htmlUtils";
 
-export function renderTopBar(samples: EditorViewerSample[]): string {
+export function renderTopBar(samples: ViewerSampleDto[]): string {
   const tabs = samples
     .map(
       (sample, index) =>

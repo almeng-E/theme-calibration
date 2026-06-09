@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 import * as crypto from "crypto";
 import { normalizeReportSignals } from "./adapter/vscodeDefaults";
-import type { ColorHexMap } from "./types/signal.types";
+import type { ThemeColorHexMap } from "./types/signal.types";
 import { CANDIDATE_ROLLBACK_STATE_KEY, COMMAND_IDS, OUTPUT_CHANNEL_NAME } from "./constants";
 import { createIntentSolutionNotification } from "./ui/notificationFormatter";
 import { createEditorViewerModel } from "./ui/editorViewModel";
@@ -28,9 +28,9 @@ import {
 import { createThemeSignalReport } from "./diagnose/diagnosticService";
 import { getErrorMessage } from "./utils/objectUtils";
 import { applyPatchPlanWithRollback } from "./patch/patchApplicationService";
-import type { PatchCandidate, RollbackSnapshot } from "./types/patch.types";
-import type { CandidateMappingRule } from "./types/rule.types";
-import type { IntentSolution } from "./types/editorViewer.types";
+import type { CandidateDto, RollbackSnapshotDto } from "./types/patch.types";
+import type { CandidateRuleDto } from "./types/rule.types";
+import type { IntentSolutionDto } from "./types/editorViewer.types";
 
 // ============================================================
 // Extension Lifecycle
@@ -94,7 +94,7 @@ function registerCommand(
 // Command Handlers
 // ============================================================
 
-type CandidateRulesProvider = () => Promise<CandidateMappingRule[]>;
+type CandidateRulesProvider = () => Promise<CandidateRuleDto[]>;
 
 async function handlePrintProbe(output: vscode.OutputChannel): Promise<void> {
   const probe = await collectThemeSnapshot(vscode, { includeThemeDefinitions: true });
@@ -202,7 +202,7 @@ async function handleOpenEditorViewer(
   const afterSignalsMap = {
     ...baseSignals,
     ...extractPatchSignals(patchRecipe)
-  } as ColorHexMap;
+  } as ThemeColorHexMap;
 
   const viewerModel = createEditorViewerModel(report, afterSignalsMap, initialCandidates);
   const nonce = crypto.randomBytes(16).toString("hex");
@@ -290,7 +290,7 @@ async function handleApplyCandidatePatch(
 
 
 async function handleRollbackCandidatePatch(output: vscode.OutputChannel, context: vscode.ExtensionContext): Promise<void> {
-  const rollbackSnapshot = context.globalState.get<RollbackSnapshot>(CANDIDATE_ROLLBACK_STATE_KEY);
+  const rollbackSnapshot = context.globalState.get<RollbackSnapshotDto>(CANDIDATE_ROLLBACK_STATE_KEY);
 
   if (!rollbackSnapshot) {
     output.appendLine("No candidate rollback snapshot found.");
@@ -319,10 +319,10 @@ async function handleRollbackCandidatePatch(output: vscode.OutputChannel, contex
 // ============================================================
 
 interface CandidateQuickPickItem extends vscode.QuickPickItem {
-  candidate: PatchCandidate;
+  candidate: CandidateDto;
 }
 
-function toCandidateQuickPickItem(candidate: PatchCandidate): CandidateQuickPickItem {
+function toCandidateQuickPickItem(candidate: CandidateDto): CandidateQuickPickItem {
   return {
     label: candidate.settingKey,
     description: `${candidate.scope} | ${candidate.riskType} | confidence ${candidate.confidence.toFixed(2)}`,
@@ -360,8 +360,8 @@ function openEditorViewerPanel(
   output: vscode.OutputChannel,
   context: vscode.ExtensionContext,
   report: ReturnType<typeof createThemeSignalReport>,
-  candidateRules: CandidateMappingRule[],
-  initialCandidates: PatchCandidate[]
+  candidateRules: CandidateRuleDto[],
+  initialCandidates: CandidateDto[]
 ): void {
   const panel = vscode.window.createWebviewPanel(
     viewType,

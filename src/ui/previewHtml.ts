@@ -1,16 +1,16 @@
 import type {
-  PreviewModel,
-  PreviewPane
+  PreviewModelDto,
+  PreviewPaneDto
 } from "../types/preview.types";
 import type {
-  PatchCandidate,
-  PatchRecipe,
+  CandidateDto,
+  PatchRecipeDto,
   SettingDictionary
 } from "../types/patch.types";
 import type {
-  ColorHexMap,
-  VisibilityRisk,
-  ThemeAnalysisReport
+  ThemeColorHexMap,
+  RiskDto,
+  ThemeReportDto
 } from "../types/signal.types";
 import { isPlainObject } from "../utils/objectUtils";
 import { normalizeReportSignals } from "../adapter/vscodeDefaults";
@@ -23,7 +23,7 @@ import { escapeHtml, cssColor, withAlphaFallback } from "../ui/htmlUtils";
 
 
 export interface PreviewModelOptions {
-  candidates?: PatchCandidate[];
+  candidates?: CandidateDto[];
   selectedCandidateId?: string;
 }
 
@@ -32,10 +32,10 @@ export interface PreviewModelOptions {
 // ============================================================
 
 export function createPreviewModel(
-  report: Partial<ThemeAnalysisReport> | undefined,
-  patchRecipe: PatchRecipe,
+  report: Partial<ThemeReportDto> | undefined,
+  patchRecipe: PatchRecipeDto,
   options: PreviewModelOptions = {}
-): PreviewModel {
+): PreviewModelDto {
   const beforeSignals = normalizeReportSignals(report?.signals);
   const afterSignals = {
     ...beforeSignals,
@@ -60,7 +60,7 @@ export function createPreviewModel(
 
 
 
-export function extractPatchSignals(patchRecipe: PatchRecipe): Partial<ColorHexMap> {
+export function extractPatchSignals(patchRecipe: PatchRecipeDto): Partial<ThemeColorHexMap> {
   const workbenchCustomizations = findScopedSettings(patchRecipe.settings["workbench.colorCustomizations"]);
   const tokenCustomizations = findScopedSettings(patchRecipe.settings["editor.tokenColorCustomizations"]);
 
@@ -89,7 +89,7 @@ function findScopedSettings(setting: SettingDictionary | undefined): Record<stri
 // 3. HTML Rendering
 // ============================================================
 
-export function renderPreviewHtml(model: PreviewModel): string {
+export function renderPreviewHtml(model: PreviewModelDto): string {
   const safeThemeName = escapeHtml(model.themeName);
   const riskItems = model.risks.length > 0
     ? model.risks.map((risk) => `<li>${escapeHtml(formatRisk(risk))}</li>`).join("")
@@ -272,7 +272,7 @@ export function renderPreviewHtml(model: PreviewModel): string {
 </html>`;
 }
 
-function renderPane(pane: PreviewPane): string {
+function renderPane(pane: PreviewPaneDto): string {
   const s = pane.signals;
   const addedBackground = withAlphaFallback(s.diffAdded, "22");
   const deletedBackground = withAlphaFallback(s.diffDeleted, "22");
@@ -293,7 +293,7 @@ function renderPane(pane: PreviewPane): string {
 </article>`;
 }
 
-function renderCandidateSection(model: PreviewModel): string {
+function renderCandidateSection(model: PreviewModelDto): string {
   const items = (model.candidates || []).map((candidate) => {
     const isSelected = candidate.id === model.selectedCandidateId;
     const selectedBadge = isSelected ? '<span class="candidate-badge">Selected</span>' : "";
@@ -316,13 +316,13 @@ function renderCandidateSection(model: PreviewModel): string {
 // 4. Formatting Utilities
 // ============================================================
 
-function removeEmptyValues(value: Partial<ColorHexMap>): Partial<ColorHexMap> {
+function removeEmptyValues(value: Partial<ThemeColorHexMap>): Partial<ThemeColorHexMap> {
   return Object.fromEntries(
     Object.entries(value).filter(([, item]) => Boolean(item))
-  ) as Partial<ColorHexMap>;
+  ) as Partial<ThemeColorHexMap>;
 }
 
-function formatRisk(risk: VisibilityRisk): string {
+function formatRisk(risk: RiskDto): string {
   if (risk.message) {
     return risk.message;
   }

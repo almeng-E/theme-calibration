@@ -5,10 +5,10 @@ import type {
   TokenColorRule
 } from "../types/theme.types";
 import type {
-  ColorSignal,
-  ColorSignalMap,
-  ColorSignalRole,
-  ThemeAnalysisReport
+  ThemeColorValue,
+  ThemeColorsDto,
+  ThemeColorRole,
+  ThemeReportDto
 } from "../types/signal.types";
 import { analyzeVisibility } from "../diagnose/visibilityRules";
 
@@ -16,7 +16,7 @@ import { analyzeVisibility } from "../diagnose/visibilityRules";
 // 1. Main Entry
 // ============================================================
 
-export function createThemeSignalReport(probe: Partial<ThemeEnvironment> | undefined): ThemeAnalysisReport {
+export function createThemeSignalReport(probe: Partial<ThemeEnvironment> | undefined): ThemeReportDto {
   const configuredName = probe?.currentTheme?.configuredName;
   const activeKind = probe?.currentTheme?.activeKind;
   const matchedTheme = findLoadedCurrentTheme(probe);
@@ -75,10 +75,10 @@ function findLoadedCurrentTheme(probe: Partial<ThemeEnvironment> | undefined): I
   );
 }
 
-function extractSignals(definition: RawThemeData): ColorSignalMap {
+function extractSignals(definition: RawThemeData): ThemeColorsDto {
   const colors = definition.colors || {};
   const tokenColors = Array.isArray(definition.tokenColors) ? definition.tokenColors : [];
-  const signals: ColorSignalMap = {};
+  const signals: ThemeColorsDto = {};
 
   addSignal(signals, "background", firstColor(colors, ["editor.background"]));
   addSignal(signals, "foreground", firstColor(colors, ["editor.foreground", "foreground"]));
@@ -121,7 +121,7 @@ function extractSignals(definition: RawThemeData): ColorSignalMap {
 // 3. Extraction Helpers
 // ============================================================
 
-function firstColor(colors: Record<string, string>, keys: string[]): ColorSignal | undefined {
+function firstColor(colors: Record<string, string>, keys: string[]): ThemeColorValue | undefined {
   for (const key of keys) {
     if (colors[key]) {
       return {
@@ -136,10 +136,10 @@ function firstColor(colors: Record<string, string>, keys: string[]): ColorSignal
 
 function findTokenColor(
   tokenColors: TokenColorRule[],
-  signalName: ColorSignalRole,
+  signalName: ThemeColorRole,
   scopeMatcher: (scope: string) => boolean
-): ColorSignal | undefined {
-  let matched: ColorSignal | undefined;
+): ThemeColorValue | undefined {
+  let matched: ThemeColorValue | undefined;
 
   for (const rule of tokenColors) {
     const foreground = rule.settings?.foreground;
@@ -159,7 +159,7 @@ function findTokenColor(
   return matched;
 }
 
-function addSignal(signals: ColorSignalMap, name: ColorSignalRole, signal: ColorSignal | undefined): void {
+function addSignal(signals: ThemeColorsDto, name: ThemeColorRole, signal: ThemeColorValue | undefined): void {
   if (signal?.value) {
     signals[name] = signal;
   }

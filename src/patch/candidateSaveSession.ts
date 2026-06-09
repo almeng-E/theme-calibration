@@ -2,8 +2,8 @@ import { createCandidatePatchApplyPlan } from "./patchService";
 import type { CandidatePatchApplyPlan } from "./patchService";
 import { isReportStale } from "./reportStaleness";
 import { parseHexColor } from "../utils/colorUtils";
-import type { ConfigurationSnapshot, PatchCandidate } from "../types/patch.types";
-import type { ThemeAnalysisReport } from "../types/signal.types";
+import type { ConfigurationSnapshot, CandidateDto } from "../types/patch.types";
+import type { ThemeReportDto } from "../types/signal.types";
 
 // ============================================================
 // CandidateSaveSession (Phase 2 — batch / deferred-save CORE model)
@@ -26,8 +26,8 @@ import type { ThemeAnalysisReport } from "../types/signal.types";
 export type CandidateStageStatus = "pending" | "accepted" | "rejected";
 
 export interface CandidateSaveSessionInput {
-  report: ThemeAnalysisReport;
-  candidates: readonly PatchCandidate[];
+  report: ThemeReportDto;
+  candidates: readonly CandidateDto[];
   existingSettings: ConfigurationSnapshot;
 }
 
@@ -37,7 +37,7 @@ export interface ComputeApplyPlanInput {
    * report is stale relative to it, the plan is refused with "staleReport".
    * Omit to skip the staleness guard (e.g. unit/preview contexts).
    */
-  currentReport?: ThemeAnalysisReport;
+  currentReport?: ThemeReportDto;
   /**
    * Fresh existing settings read at save time. When provided, the batch plan
    * is computed against this snapshot instead of the one captured by the
@@ -66,10 +66,10 @@ export type ComputeApplyPlanResult =
     };
 
 export class CandidateSaveSession {
-  private readonly report: ThemeAnalysisReport;
+  private readonly report: ThemeReportDto;
   // Mutable: registerCandidates may append dynamically-surfaced candidates.
   // Insertion order is preserved (existing first, then registered).
-  private candidates: PatchCandidate[];
+  private candidates: CandidateDto[];
   private readonly existingSettings: ConfigurationSnapshot;
   private readonly candidateIds: Set<string>;
 
@@ -97,7 +97,7 @@ export class CandidateSaveSession {
    * New ids are appended in the given order (existing first, then registered).
    * Idempotent; never alters already-staged decisions. PURE: no I/O.
    */
-  registerCandidates(candidates: readonly PatchCandidate[]): void {
+  registerCandidates(candidates: readonly CandidateDto[]): void {
     for (const candidate of candidates) {
       if (this.candidateIds.has(candidate.id)) {
         continue;
@@ -164,7 +164,7 @@ export class CandidateSaveSession {
    * Used by the host to recompute the live B-layer preview without reaching
    * into private staging. Never mutates state.
    */
-  getAcceptedCandidates(): PatchCandidate[] {
+  getAcceptedCandidates(): CandidateDto[] {
     return this.candidates
       .filter((candidate) => this.statuses.get(candidate.id) === "accepted")
       .map((candidate) => this.toEffectiveCandidate(candidate));
@@ -176,7 +176,7 @@ export class CandidateSaveSession {
    * This is the SINGLE overlay point reused by getAcceptedCandidates and
    * computeApplyPlan so the preview and the saved patch always agree.
    */
-  private toEffectiveCandidate(candidate: PatchCandidate): PatchCandidate {
+  private toEffectiveCandidate(candidate: CandidateDto): CandidateDto {
     const override = this.colorOverrides.get(candidate.id);
     if (override === undefined) {
       return candidate;

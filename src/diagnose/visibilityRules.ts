@@ -1,24 +1,24 @@
 import type {
-  ColorSignalMap,
-  ColorSignalRole,
-  SignalContrastMap,
-  VisibilityRisk
+  ThemeColorsDto,
+  ThemeColorRole,
+  ContrastMapDto,
+  RiskDto
 } from "../types/signal.types";
 import { calculateContrastRatio, calculateColorDistance } from "../utils/colorUtils";
 
 export interface VisibilityAnalysisResult {
-  contrast: SignalContrastMap;
-  risks: VisibilityRisk[];
+  contrast: ContrastMapDto;
+  risks: RiskDto[];
 }
 
 export interface VisibilityAnalysisOptions {
   textContrastThreshold?: number;
   similarSignalDistanceThreshold?: number;
-  textSignals?: readonly ColorSignalRole[];
-  similarSignalPairs?: readonly (readonly [ColorSignalRole, ColorSignalRole])[];
+  textSignals?: readonly ThemeColorRole[];
+  similarSignalPairs?: readonly (readonly [ThemeColorRole, ThemeColorRole])[];
 }
 
-const DEFAULT_TEXT_SIGNAL_NAMES: readonly ColorSignalRole[] = [
+const DEFAULT_TEXT_SIGNAL_NAMES: readonly ThemeColorRole[] = [
   "foreground",
   "comment",
   "string",
@@ -27,7 +27,7 @@ const DEFAULT_TEXT_SIGNAL_NAMES: readonly ColorSignalRole[] = [
   "warning"
 ];
 
-const DEFAULT_SIMILAR_SIGNAL_PAIRS: readonly (readonly [ColorSignalRole, ColorSignalRole])[] = [
+const DEFAULT_SIMILAR_SIGNAL_PAIRS: readonly (readonly [ThemeColorRole, ThemeColorRole])[] = [
   ["comment", "string"],
   ["string", "diffDeleted"],
   ["error", "diffDeleted"],
@@ -36,7 +36,7 @@ const DEFAULT_SIMILAR_SIGNAL_PAIRS: readonly (readonly [ColorSignalRole, ColorSi
 ];
 
 export function analyzeVisibility(
-  signals: ColorSignalMap,
+  signals: ThemeColorsDto,
   options: VisibilityAnalysisOptions = {}
 ): VisibilityAnalysisResult {
   const contrast = calculateSignalContrasts(signals);
@@ -45,15 +45,15 @@ export function analyzeVisibility(
   return { contrast, risks };
 }
 
-export function calculateSignalContrasts(signals: ColorSignalMap): SignalContrastMap {
+export function calculateSignalContrasts(signals: ThemeColorsDto): ContrastMapDto {
   const background = signals.background?.value;
-  const contrast: SignalContrastMap = {};
+  const contrast: ContrastMapDto = {};
 
   if (!background) {
     return contrast;
   }
 
-  for (const signalName of Object.keys(signals) as ColorSignalRole[]) {
+  for (const signalName of Object.keys(signals) as ThemeColorRole[]) {
     if (signalName === "background") {
       continue;
     }
@@ -70,18 +70,18 @@ export function calculateSignalContrasts(signals: ColorSignalMap): SignalContras
 }
 
 export function createVisibilityRisks(
-  signals: ColorSignalMap,
-  contrast: SignalContrastMap,
+  signals: ThemeColorsDto,
+  contrast: ContrastMapDto,
   options: VisibilityAnalysisOptions = {}
-): VisibilityRisk[] {
-  const risks: VisibilityRisk[] = [];
+): RiskDto[] {
+  const risks: RiskDto[] = [];
   const textContrastThreshold = options.textContrastThreshold ?? 4.5;
   const similarSignalDistanceThreshold = options.similarSignalDistanceThreshold ?? 35;
   const textSignals = options.textSignals ?? DEFAULT_TEXT_SIGNAL_NAMES;
   const similarSignalPairs = options.similarSignalPairs ?? DEFAULT_SIMILAR_SIGNAL_PAIRS;
 
   for (const signalName of textSignals) {
-    const item = contrast[signalName as Exclude<ColorSignalRole, "background">];
+    const item = contrast[signalName as Exclude<ThemeColorRole, "background">];
     if (item && item.ratio < textContrastThreshold) {
       risks.push({
         type: "lowContrast",

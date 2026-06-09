@@ -1,5 +1,5 @@
-import type { ColorHexMap, ThemeAnalysisReport } from "../types/signal.types";
-import type { PatchCandidate } from "../types/patch.types";
+import type { ThemeColorHexMap, ThemeReportDto } from "../types/signal.types";
+import type { CandidateDto } from "../types/patch.types";
 import { normalizeReportSignals } from "../adapter/vscodeDefaults";
 import { createEditorViewerModel } from "./editorViewModel";
 import { renderSamplesHtml } from "./components/sliderArea";
@@ -15,10 +15,10 @@ import { renderSamplesHtml } from "./components/sliderArea";
  * No I/O, no VS Code API. Given the same inputs it always returns the same HTML.
  */
 export function renderAfterLayerHtml(
-  report: ThemeAnalysisReport,
-  acceptedCandidates: readonly PatchCandidate[]
+  report: ThemeReportDto,
+  acceptedCandidates: readonly CandidateDto[]
 ): string {
-  const afterSignals: ColorHexMap = { ...normalizeReportSignals(report.signals) };
+  const afterSignals: ThemeColorHexMap = { ...normalizeReportSignals(report.signals) };
 
   for (const candidate of acceptedCandidates) {
     for (const signal of candidate.signals) {

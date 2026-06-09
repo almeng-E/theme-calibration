@@ -1,9 +1,9 @@
-import type { ColorHexMap } from "../../types/signal.types";
-import type { EditorViewerSample } from "../../types/editorViewer.types";
+import type { ThemeColorHexMap } from "../../types/signal.types";
+import type { ViewerSampleDto } from "../../types/editorViewer.types";
 import { createSample, createLine, createRegion } from "./sampleUtils";
 import { withAlphaFallback } from "../../ui/htmlUtils";
 
-export function createDiffSample(signals: ColorHexMap): EditorViewerSample {
+export function createDiffSample(signals: ThemeColorHexMap): ViewerSampleDto {
   return createSample("diff-sample", "Diff", "diff", signals, [
     createLine("diff-line-1", [
       createRegion(

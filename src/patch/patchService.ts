@@ -1,25 +1,25 @@
 import { SETTINGS_ORDER } from "../constants";
 import type {
   ConfigurationSnapshot,
-  PatchExecutionPlan,
-  PatchRecipe,
-  RollbackExecutionPlan,
-  RollbackSnapshot,
+  PatchPlanDto,
+  PatchRecipeDto,
+  RollbackPlanDto,
+  RollbackSnapshotDto,
   SettingDictionary
 } from "../types/patch.types";
 import { isPlainObject, clonePlainSetting, createEmptySettingsSnapshot } from "../utils/objectUtils";
 import { serializeSettingsUpdates } from "../serializer/vscode.serializer";
-import type { ThemeAnalysisReport } from "../types/signal.types";
-import type { PatchCandidate } from "../types/patch.types";
+import type { ThemeReportDto } from "../types/signal.types";
+import type { CandidateDto } from "../types/patch.types";
 import { createPatchCandidates, createPatchRecipeFromCandidates } from "../diagnose/diagnosticEngine";
 
 // No hardcoded patch recipes should be in core.
 
 export function buildPatchPlan(
   existingSettings: ConfigurationSnapshot,
-  patchRecipe: PatchRecipe,
+  patchRecipe: PatchRecipeDto,
   now = new Date()
-): PatchExecutionPlan {
+): PatchPlanDto {
   const nextSettings = createEmptySettingsSnapshot();
   const rollbackSettings = createEmptySettingsSnapshot();
 
@@ -43,7 +43,7 @@ export function buildPatchPlan(
   };
 }
 
-export function buildRollbackPlan(rollbackSnapshot: RollbackSnapshot | undefined): RollbackExecutionPlan {
+export function buildRollbackPlan(rollbackSnapshot: RollbackSnapshotDto | undefined): RollbackPlanDto {
   if (!rollbackSnapshot || !rollbackSnapshot.settings) {
     throw new Error("Rollback snapshot is missing.");
   }
@@ -57,8 +57,8 @@ export function buildRollbackPlan(rollbackSnapshot: RollbackSnapshot | undefined
 
 export function wrapRecipeForTheme(
   themeName: string | undefined,
-  baseRecipe: PatchRecipe
-): PatchRecipe {
+  baseRecipe: PatchRecipeDto
+): PatchRecipeDto {
   if (!themeName) {
     return baseRecipe;
   }
@@ -90,17 +90,17 @@ function mergePlainObjects(base: SettingDictionary, override: SettingDictionary)
 }
 
 export interface CandidatePatchApplyPlanInput {
-  report: ThemeAnalysisReport;
-  candidates: readonly PatchCandidate[];
+  report: ThemeReportDto;
+  candidates: readonly CandidateDto[];
   selectedCandidateIds: readonly string[];
   existingSettings: ConfigurationSnapshot;
   now?: Date;
 }
 
 export interface CandidatePatchApplyPlan {
-  candidates: readonly PatchCandidate[];
-  selectedCandidates: readonly PatchCandidate[];
-  patchPlan: PatchExecutionPlan;
+  candidates: readonly CandidateDto[];
+  selectedCandidates: readonly CandidateDto[];
+  patchPlan: PatchPlanDto;
 }
 
 export function createCandidatePatchApplyPlan(input: CandidatePatchApplyPlanInput): CandidatePatchApplyPlan {
@@ -116,7 +116,7 @@ export function createCandidatePatchApplyPlan(input: CandidatePatchApplyPlanInpu
 
   const selectedCandidates = input.selectedCandidateIds
     .map((id) => candidates.find((candidate) => candidate.id === id))
-    .filter((c): c is PatchCandidate => c !== undefined);
+    .filter((c): c is CandidateDto => c !== undefined);
 
   if (selectedCandidates.length !== input.selectedCandidateIds.length) {
     throw new Error("Some selected candidates were not found.");

@@ -2,7 +2,7 @@
 // 신호(Signal) 분석 & 위험(Risk) 리포트
 // ============================================================
 
-export type ColorSignalRole =
+export type ThemeColorRole =
   | "background"
   | "foreground"
   | "comment"
@@ -13,26 +13,26 @@ export type ColorSignalRole =
   | "diffAdded"
   | "diffDeleted";
 
-export interface ColorSignal {
+export interface ThemeColorValue {
   value: string;
   source?: string;
 }
 
-export type ColorSignalMap = Partial<Record<ColorSignalRole, ColorSignal>>;
-export type ColorHexMap = Record<ColorSignalRole, string>;
-export type SignalContrastMap = Partial<Record<Exclude<ColorSignalRole, "background">, { ratio: number }>>;
+export type ThemeColorsDto = Partial<Record<ThemeColorRole, ThemeColorValue>>;
+export type ThemeColorHexMap = Record<ThemeColorRole, string>;
+export type ContrastMapDto = Partial<Record<Exclude<ThemeColorRole, "background">, { ratio: number }>>;
 
-export interface VisibilityRisk {
+export interface RiskDto {
   type: string;
-  signal?: ColorSignalRole;
-  signals?: ColorSignalRole[];
+  signal?: ThemeColorRole;
+  signals?: ThemeColorRole[];
   contrastRatio?: number;
   threshold?: number;
   colorDistance?: number;
   message?: string;
 }
 
-export interface ThemeAnalysisReport {
+export interface ThemeReportDto {
   generatedAt: string;
   theme: {
     configuredName?: string;
@@ -42,7 +42,7 @@ export interface ThemeAnalysisReport {
     extensionId?: string;
     definitionStatus: string;
   };
-  signals: ColorSignalMap;
-  contrast: SignalContrastMap;
-  risks: VisibilityRisk[];
+  signals: ThemeColorsDto;
+  contrast: ContrastMapDto;
+  risks: RiskDto[];
 }

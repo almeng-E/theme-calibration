@@ -1,8 +1,8 @@
-import type { ColorHexMap } from "../../types/signal.types";
-import type { EditorViewerSample } from "../../types/editorViewer.types";
+import type { ThemeColorHexMap } from "../../types/signal.types";
+import type { ViewerSampleDto } from "../../types/editorViewer.types";
 import { createSample, createLine, createRegion } from "./sampleUtils";
 
-export function createPythonSample(signals: ColorHexMap): EditorViewerSample {
+export function createPythonSample(signals: ThemeColorHexMap): ViewerSampleDto {
   return createSample("python-sample", "Python (Syntax)", "syntax", signals, [
     createLine("py-line-1", [
       createRegion("python-sample", "py-def", "Keyword", "def", "keyword", signals.keyword),

@@ -1,9 +1,9 @@
-import type { CandidateMappingRule } from "../types/rule.types";
+import type { CandidateRuleDto } from "../types/rule.types";
 
-export type CandidateRulesLoader = () => Promise<CandidateMappingRule[]>;
+export type CandidateRulesLoader = () => Promise<CandidateRuleDto[]>;
 
 export function createCandidateRulesProvider(loadRules: CandidateRulesLoader): CandidateRulesLoader {
-  let candidateRulesPromise: Promise<CandidateMappingRule[]> | undefined;
+  let candidateRulesPromise: Promise<CandidateRuleDto[]> | undefined;
 
   return () => {
     if (!candidateRulesPromise) {
