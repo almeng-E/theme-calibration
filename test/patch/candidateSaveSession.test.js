@@ -309,6 +309,31 @@ test("registerCandidates: getAcceptedIds returns existing-first then registratio
   assert.deepEqual(session.getAcceptedIds(), [COMMENT_CANDIDATE_ID, STRING_CANDIDATE_ID]);
 });
 
+test("getAcceptedCandidates returns the accepted candidate OBJECTS in original ordering and is non-mutating", () => {
+  const report = createCandidateRichReport();
+  const candidates = createCandidates(report);
+  const session = new CandidateSaveSession({
+    report,
+    candidates,
+    existingSettings: createExistingSettings()
+  });
+
+  // Nothing accepted yet.
+  assert.deepEqual(session.getAcceptedCandidates(), []);
+
+  session.accept(STRING_CANDIDATE_ID);
+  session.accept(COMMENT_CANDIDATE_ID);
+
+  const accepted = session.getAcceptedCandidates();
+  // Returns full objects, not just ids, in original candidate ordering.
+  assert.deepEqual(accepted.map((c) => c.id), [COMMENT_CANDIDATE_ID, STRING_CANDIDATE_ID]);
+  assert.equal(accepted[0].suggestedColor, candidates.find((c) => c.id === COMMENT_CANDIDATE_ID).suggestedColor);
+
+  // Rejecting removes it from the accepted set (non-mutating accessor).
+  session.reject(COMMENT_CANDIDATE_ID);
+  assert.deepEqual(session.getAcceptedCandidates().map((c) => c.id), [STRING_CANDIDATE_ID]);
+});
+
 test("computeApplyPlan existingSettings override: rollback/merge reflect the override, omitting falls back to constructor", () => {
   const report = createCandidateRichReport();
   const session = new CandidateSaveSession({

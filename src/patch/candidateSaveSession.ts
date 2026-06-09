@@ -125,6 +125,15 @@ export class CandidateSaveSession {
   }
 
   /**
+   * PURE: the accepted candidate OBJECTS, in the original candidate ordering.
+   * Used by the host to recompute the live B-layer preview without reaching
+   * into private staging. Never mutates state.
+   */
+  getAcceptedCandidates(): PatchCandidate[] {
+    return this.candidates.filter((candidate) => this.statuses.get(candidate.id) === "accepted");
+  }
+
+  /**
    * PURE: compute the batch apply plan. Does NOT mutate staging state.
    * See ComputeApplyPlanResult for the status contract.
    */

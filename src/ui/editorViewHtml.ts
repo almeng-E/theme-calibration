@@ -185,8 +185,66 @@ export function renderEditorViewerHtml(model: EditorViewerModel, nonce?: string)
             // B 레이어의 DOM이 새로 생성되었으므로 syncUI를 호출해 .active 클래스 등을 복구합니다.
             syncUI();
           }
+        } else if (message.type === "saveResult") {
+          handleSaveResult(message);
         }
       });
+
+      // Save 버튼 상태 머신 (Save button state machine).
+      // Accept/Reject는 스테이징만 하고, 명시적 Save 클릭 시에만 일괄 저장됩니다.
+      var saveButton = document.querySelector("[data-save-button]");
+      var saveStatus = document.querySelector("[data-save-status]");
+
+      function setSaveStatus(text) {
+        if (saveStatus) {
+          saveStatus.textContent = text || "";
+        }
+      }
+
+      function resetSaveButton() {
+        if (!saveButton) return;
+        saveButton.disabled = false;
+        saveButton.textContent = "Save Changes";
+      }
+
+      if (saveButton) {
+        saveButton.addEventListener("click", function () {
+          saveButton.disabled = true;
+          saveButton.textContent = "Saving…";
+          setSaveStatus("");
+          vscode.postMessage({ type: "saveCandidates" });
+        });
+      }
+
+      function handleSaveResult(message) {
+        if (!saveButton) return;
+
+        if (message.ok === true) {
+          // 성공: 성공 라벨을 잠깐 보여준 뒤 버튼을 복구합니다.
+          var count = typeof message.count === "number" ? message.count : 0;
+          saveButton.disabled = true;
+          saveButton.textContent = "✓ Saved";
+          setSaveStatus("✓ Saved " + count + " change(s)");
+          setTimeout(function () {
+            resetSaveButton();
+            setSaveStatus("");
+          }, 1500);
+          return;
+        }
+
+        // CRITICAL: 실패 시 절대 성공 상태를 보여주지 않습니다 (no silent success).
+        resetSaveButton();
+        var reason = message.reason;
+        if (reason === "stale") {
+          setSaveStatus("Theme changed — reopen the viewer");
+        } else if (reason === "empty") {
+          setSaveStatus("No accepted changes to save");
+        } else if (reason === "error") {
+          setSaveStatus("Save failed" + (message.message ? ": " + message.message : ""));
+        } else {
+          setSaveStatus("Save failed");
+        }
+      }
 
       function renderSolutionResult(solution) {
         var status = document.querySelector("[data-solution-status]");

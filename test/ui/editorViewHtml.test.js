@@ -161,6 +161,48 @@ test("renderEditorViewerHtml seeds initialCandidates into the inline script", ()
   assert.match(html, /"suggestedColor":"#abcdef"/);
 });
 
+test("renderEditorViewerHtml renders an explicit Save button in the candidate panel", () => {
+  const html = renderEditorViewerHtml(createEditorViewerModel(createFakeReport("Sample Dark")), "testnonce");
+
+  assert.match(html, /data-save-button/);
+  assert.match(html, /id="save-button"/);
+  assert.match(html, /Save Changes/);
+});
+
+test("renderEditorViewerHtml Save button posts saveCandidates and enters Saving… state", () => {
+  const html = renderEditorViewerHtml(createEditorViewerModel(createFakeReport("Sample Dark")), "testnonce");
+
+  assert.match(html, /type: "saveCandidates"/);
+  assert.match(html, /saveButton\.disabled = true/);
+  assert.match(html, /saveButton\.textContent = "Saving…"/);
+});
+
+test("renderEditorViewerHtml handles saveResult ok:true with a success label and re-enable", () => {
+  const html = renderEditorViewerHtml(createEditorViewerModel(createFakeReport("Sample Dark")), "testnonce");
+
+  assert.match(html, /message\.type === "saveResult"/);
+  assert.match(html, /message\.ok === true/);
+  assert.match(html, /✓ Saved/);
+  // After success it must restore the button (re-enable + restore label).
+  assert.match(html, /resetSaveButton/);
+});
+
+test("renderEditorViewerHtml handles saveResult ok:false with the three distinct reasons and NO silent success", () => {
+  const html = renderEditorViewerHtml(createEditorViewerModel(createFakeReport("Sample Dark")), "testnonce");
+
+  // Three reason branches, each with a distinct user-facing message.
+  assert.match(html, /reason === "stale"/);
+  assert.match(html, /Theme changed — reopen the viewer/);
+  assert.match(html, /reason === "empty"/);
+  assert.match(html, /No accepted changes to save/);
+  assert.match(html, /reason === "error"/);
+  assert.match(html, /Save failed/);
+  // CRITICAL: on failure the button is re-enabled and success is NOT shown.
+  // The ok:true success branch returns early, so the failure path always calls
+  // resetSaveButton() and never the "✓ Saved" label.
+  assert.match(html, /resetSaveButton\(\);/);
+});
+
 function createFakeReport(themeName) {
   return {
     theme: {
