@@ -9,8 +9,8 @@ import type { ThemeAnalysisReport } from "../types/signal.types";
 // module computes a stable fingerprint of the report and compares two
 // reports for equivalence.
 //
-// PURE: no VS Code API, no I/O. Reused by editorViewerApplyService.ts
-// and candidateSaveSession.ts so the staleness contract lives in ONE place.
+// PURE: no VS Code API, no I/O. Reused by candidateSaveSession.ts so the
+// staleness contract lives in ONE place.
 // ============================================================
 
 export function createReportStaleFingerprint(report: ThemeAnalysisReport): string {

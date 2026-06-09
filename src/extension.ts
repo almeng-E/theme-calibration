@@ -12,9 +12,7 @@ import { createPatchCandidates, createPatchRecipeFromCandidates } from "./diagno
 import { createIntentSolution } from "./diagnose/intentSolution";
 import { createPreviewModel, renderPreviewHtml, extractPatchSignals } from "./ui/previewHtml";
 import {
-  buildPatchPlan,
   buildRollbackPlan,
-  wrapRecipeForTheme,
   createCandidatePatchApplyPlan
 } from "./patch/patchService";
 import {
