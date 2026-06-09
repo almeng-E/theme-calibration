@@ -1,5 +1,6 @@
 import { createCandidatePatchApplyPlan } from "./patchService";
 import type { CandidatePatchApplyPlan, CandidatePatchApplyPlanInput } from "./patchService";
+import { isReportStale } from "./reportStaleness";
 import type { IntentSolution } from "../types/editorViewer.types";
 import type { ThemeAnalysisReport } from "../types/signal.types";
 import type { PatchCandidate } from "../types/patch.types";
@@ -23,7 +24,7 @@ export function createEditorViewerCandidateApplyPlan(
   input: EditorViewerCandidateApplyPlanInput
 ): EditorViewerCandidateApplyPlanResult {
 
-  if (input.currentReport && isEditorViewerReportStale(input.report, input.currentReport)) {
+  if (input.currentReport && isReportStale(input.report, input.currentReport)) {
     return {
       status: "staleReport"
     };
@@ -42,23 +43,4 @@ export function createEditorViewerCandidateApplyPlan(
     selectedCandidate: input.candidate,
     patchPlan: applyPlan.patchPlan
   };
-}
-
-function isEditorViewerReportStale(viewerReport: ThemeAnalysisReport, currentReport: ThemeAnalysisReport): boolean {
-  return createReportStaleFingerprint(viewerReport) !== createReportStaleFingerprint(currentReport);
-}
-
-function createReportStaleFingerprint(report: ThemeAnalysisReport): string {
-  return JSON.stringify({
-    theme: {
-      configuredName: report.theme.configuredName,
-      activeKind: report.theme.activeKind,
-      id: report.theme.id,
-      label: report.theme.label,
-      extensionId: report.theme.extensionId,
-      definitionStatus: report.theme.definitionStatus
-    },
-    signals: report.signals,
-    risks: report.risks
-  });
 }
