@@ -27,6 +27,7 @@
 ## Task 1: Renderer RED 테스트
 
 **Files:**
+
 - Create: `test/core/editorViewerRenderer.test.js`
 
 - [ ] **Step 1: Write the failing test**
@@ -39,10 +40,14 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const { createEditorViewerModel } = require("../../out/core/editorViewerModel");
-const { renderEditorViewerHtml } = require("../../out/core/editorViewerRenderer");
+const {
+  renderEditorViewerHtml,
+} = require("../../out/core/editorViewerRenderer");
 
 test("renderEditorViewerHtml renders samples and clickable regions", () => {
-  const html = renderEditorViewerHtml(createEditorViewerModel(createFakeReport("Sample Dark")));
+  const html = renderEditorViewerHtml(
+    createEditorViewerModel(createFakeReport("Sample Dark")),
+  );
 
   assert.match(html, /Current Theme Editor Viewer/);
   assert.match(html, /Sample Dark/);
@@ -55,14 +60,18 @@ test("renderEditorViewerHtml renders samples and clickable regions", () => {
 });
 
 test("renderEditorViewerHtml escapes theme and region text", () => {
-  const html = renderEditorViewerHtml(createEditorViewerModel(createFakeReport("Dark <script>alert(1)</script>")));
+  const html = renderEditorViewerHtml(
+    createEditorViewerModel(createFakeReport("Dark <script>alert(1)</script>")),
+  );
 
   assert.match(html, /Dark &lt;script&gt;alert\(1\)&lt;\/script&gt;/);
   assert.doesNotMatch(html, /<script>alert\(1\)<\/script>/);
 });
 
 test("renderEditorViewerHtml serializes region intent safely", () => {
-  const html = renderEditorViewerHtml(createEditorViewerModel(createFakeReport("Sample Dark")));
+  const html = renderEditorViewerHtml(
+    createEditorViewerModel(createFakeReport("Sample Dark")),
+  );
 
   assert.match(html, /&quot;source&quot;:&quot;viewerClick&quot;/);
   assert.match(html, /&quot;targetId&quot;:&quot;syntax-comment&quot;/);
@@ -71,7 +80,7 @@ test("renderEditorViewerHtml serializes region intent safely", () => {
 function createFakeReport(themeName) {
   return {
     theme: {
-      configuredName: themeName
+      configuredName: themeName,
     },
     signals: {
       background: { value: "#101010" },
@@ -82,9 +91,9 @@ function createFakeReport(themeName) {
       error: { value: "#f44747" },
       warning: { value: "#ffd166" },
       diffAdded: { value: "#4cc38a" },
-      diffDeleted: { value: "#f44747" }
+      diffDeleted: { value: "#f44747" },
     },
-    risks: []
+    risks: [],
   };
 }
 ```
@@ -98,6 +107,7 @@ Expected: FAIL with `Cannot find module '../../out/core/editorViewerRenderer'`.
 ## Task 2: Renderer GREEN 구현
 
 **Files:**
+
 - Create: `src/core/editorViewerRenderer.ts`
 
 - [ ] **Step 1: Create renderer**
@@ -109,14 +119,14 @@ import type {
   EditorViewerLine,
   EditorViewerModel,
   EditorViewerRegion,
-  EditorViewerSample
+  EditorViewerSample,
 } from "./types/editorViewer.types";
 
 export function renderEditorViewerHtml(model: EditorViewerModel): string {
   const samples = model.samples.map(renderSample).join("");
 
   return `<!doctype html>
-<html lang="ko">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -198,7 +208,9 @@ function renderLine(line: EditorViewerLine): string {
 }
 
 function renderRegion(region: EditorViewerRegion): string {
-  const backgroundStyle = region.backgroundColor ? ` background:${cssColor(region.backgroundColor)};` : "";
+  const backgroundStyle = region.backgroundColor
+    ? ` background:${cssColor(region.backgroundColor)};`
+    : "";
   const intent = escapeHtml(JSON.stringify(region.intent));
 
   return `<button class="region" type="button" data-region-id="${escapeHtml(region.id)}" data-signal="${escapeHtml(region.signal)}" data-intent="${intent}" style="color:${cssColor(region.color)};${backgroundStyle}">${escapeHtml(region.text)}</button>`;
@@ -227,6 +239,7 @@ Expected: renderer tests pass.
 ## Task 3: Extension command wiring
 
 **Files:**
+
 - Modify: `src/constants.ts`
 - Modify: `package.json`
 - Modify: `src/extension.ts`
@@ -270,27 +283,44 @@ registerCommand(output, COMMAND_IDS.openEditorViewer, "Editor viewer", handleOpe
 handler를 추가한다.
 
 ```typescript
-async function handleOpenEditorViewer(output: vscode.OutputChannel): Promise<void> {
-  const probe = await collectThemeSnapshot(vscode, { includeThemeDefinitions: true });
+async function handleOpenEditorViewer(
+  output: vscode.OutputChannel,
+): Promise<void> {
+  const probe = await collectThemeSnapshot(vscode, {
+    includeThemeDefinitions: true,
+  });
   const report = createThemeSignalReport(probe);
   const viewerModel = createEditorViewerModel(report);
 
   openHtmlPanel(
     "colorCalibrationEditorViewer",
     "Color Calibration Editor Viewer",
-    renderEditorViewerHtml(viewerModel)
+    renderEditorViewerHtml(viewerModel),
   );
 
-  output.appendLine(JSON.stringify({
-    themeName: viewerModel.themeName,
-    samples: viewerModel.samples.length,
-    regions: viewerModel.samples.reduce(
-      (count, sample) => count + sample.lines.reduce((lineCount, line) => lineCount + line.regions.length, 0),
-      0
-    )
-  }, null, 2));
+  output.appendLine(
+    JSON.stringify(
+      {
+        themeName: viewerModel.themeName,
+        samples: viewerModel.samples.length,
+        regions: viewerModel.samples.reduce(
+          (count, sample) =>
+            count +
+            sample.lines.reduce(
+              (lineCount, line) => lineCount + line.regions.length,
+              0,
+            ),
+          0,
+        ),
+      },
+      null,
+      2,
+    ),
+  );
   console.log("[Color Calibration] Editor viewer", viewerModel);
-  vscode.window.showInformationMessage(`Editor viewer opened for ${viewerModel.themeName}.`);
+  vscode.window.showInformationMessage(
+    `Editor viewer opened for ${viewerModel.themeName}.`,
+  );
 }
 ```
 
@@ -300,7 +330,7 @@ async function handleOpenEditorViewer(output: vscode.OutputChannel): Promise<voi
 function openPreviewPanel(
   viewType: string,
   title: string,
-  previewModel: ReturnType<typeof createPreviewModel>
+  previewModel: ReturnType<typeof createPreviewModel>,
 ): void {
   openHtmlPanel(viewType, title, renderPreviewHtml(previewModel));
 }
@@ -312,8 +342,8 @@ function openHtmlPanel(viewType: string, title: string, html: string): void {
     vscode.ViewColumn.Beside,
     {
       enableScripts: false,
-      retainContextWhenHidden: true
-    }
+      retainContextWhenHidden: true,
+    },
   );
 
   panel.webview.html = html;
