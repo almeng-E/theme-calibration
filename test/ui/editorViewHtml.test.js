@@ -2,26 +2,28 @@
 
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { createEditorViewerModel } = require("../../out/ui/diagnosticViewModel");
-const { renderEditorViewerHtml } = require("../../out/ui/diagnosticViewHtml");
+const { createEditorViewerModel } = require("../../out/ui/editorViewModel");
+const { renderEditorViewerHtml } = require("../../out/ui/editorViewHtml");
 
 test("renderEditorViewerHtml renders samples and clickable regions", () => {
   const html = renderEditorViewerHtml(createEditorViewerModel(createFakeReport("Sample Dark")));
 
   assert.match(html, /Current Theme Editor Viewer/);
-  assert.match(html, /Sample Dark/);
-  assert.match(html, /Syntax Signals/);
+  assert.match(html, /Python \(Syntax\)/);
   assert.match(html, /Diagnostics/);
   assert.match(html, /Diff/);
-  assert.match(html, /data-region-id="syntax-comment"/);
+  assert.match(html, /data-region-id="py-comment"/);
   assert.match(html, /data-signal="comment"/);
   assert.match(html, /data-intent=/);
 });
 
-test("renderEditorViewerHtml escapes theme and region text", () => {
-  const html = renderEditorViewerHtml(createEditorViewerModel(createFakeReport("Dark <script>alert(1)</script>")));
+test("renderEditorViewerHtml escapes region text", () => {
+  const model = createEditorViewerModel(createFakeReport("Sample Dark"));
+  model.samples[0].lines[0].regions[0].text = "<script>alert(1)</script>";
 
-  assert.match(html, /Dark &lt;script&gt;alert\(1\)&lt;\/script&gt;/);
+  const html = renderEditorViewerHtml(model);
+
+  assert.match(html, /&lt;script&gt;alert\(1\)&lt;\/script&gt;/);
   assert.doesNotMatch(html, /<script>alert\(1\)<\/script>/);
 });
 
@@ -29,7 +31,7 @@ test("renderEditorViewerHtml serializes region intent safely", () => {
   const html = renderEditorViewerHtml(createEditorViewerModel(createFakeReport("Sample Dark")));
 
   assert.match(html, /&quot;source&quot;:&quot;viewerClick&quot;/);
-  assert.match(html, /&quot;targetId&quot;:&quot;syntax-comment&quot;/);
+  assert.match(html, /&quot;targetId&quot;:&quot;py-comment&quot;/);
 });
 
 test("renderEditorViewerHtml includes solution panel placeholders", () => {
@@ -45,15 +47,15 @@ test("renderEditorViewerHtml listens for solution result messages", () => {
   const html = renderEditorViewerHtml(createEditorViewerModel(createFakeReport("Sample Dark")), "testnonce");
 
   assert.match(html, /window\.addEventListener\("message"/);
-  assert.match(html, /message\.type !== "solutionResult"/);
+  assert.match(html, /message\.type === "solutionResult"/);
   assert.match(html, /renderSolutionResult\(message\.solution\)/);
   assert.match(html, /candidate\.suggestedColor/);
 });
 
-test("renderEditorViewerHtml renders Apply button wiring for solution candidates", () => {
+test("renderEditorViewerHtml renders Accept/Reject button wiring for solution candidates", () => {
   const html = renderEditorViewerHtml(createEditorViewerModel(createFakeReport("Sample Dark")), "testnonce");
 
-  assert.match(html, /button\.textContent = "Apply"/);
+  assert.match(html, /acceptBtn\.innerHTML = "✓ Accept"/);
   assert.match(html, /type: "applyCandidatePatch"/);
   assert.match(html, /candidateId: candidate\.id/);
 });

@@ -6,51 +6,15 @@ const { createPatchCandidates } = require("../../out/diagnose/diagnosticEngine")
 const { createEditorViewerCandidateApplyPlan } = require("../../out/patch/editorViewerApplyService");
 const { LOW_CONTRAST_MAPPINGS, SIMILAR_SIGNAL_MAPPINGS } = require("../fixtures/diagnostic.fixtures.js");
 
-test("createEditorViewerCandidateApplyPlan returns noActiveSolution when no active candidate solution exists", () => {
+const COMMENT_CANDIDATE_ID = "lowContrast-comment-editor.tokenColorCustomizations-comments";
+
+test("createEditorViewerCandidateApplyPlan returns staleReport when currentReport no longer matches the viewer report", () => {
+  const report = createCandidateRichReport();
+
   const result = createEditorViewerCandidateApplyPlan({
-    report: createCandidateRichReport(),
-    latestSolution: undefined,
-    candidateId: "lowContrast-comment-editor.tokenColorCustomizations-comments",
-    existingSettings: createExistingSettings()
-  });
-
-  assert.deepEqual(result, {
-    status: "noActiveSolution"
-  });
-});
-
-test("createEditorViewerCandidateApplyPlan returns invalidCandidateId for empty candidate id", () => {
-  const result = createEditorViewerCandidateApplyPlan({
-    report: createCandidateRichReport(),
-    latestSolution: createActiveSolution(),
-    candidateId: "",
-    existingSettings: createExistingSettings()
-  });
-
-  assert.deepEqual(result, {
-    status: "invalidCandidateId"
-  });
-});
-
-test("createEditorViewerCandidateApplyPlan returns candidateUnavailable for stale candidate id", () => {
-  const result = createEditorViewerCandidateApplyPlan({
-    report: createCandidateRichReport(),
-    latestSolution: createActiveSolution(),
-    candidateId: "missing-candidate",
-    existingSettings: createExistingSettings()
-  });
-
-  assert.deepEqual(result, {
-    status: "candidateUnavailable"
-  });
-});
-
-test("createEditorViewerCandidateApplyPlan returns staleReport when viewer theme no longer matches current theme", () => {
-  const result = createEditorViewerCandidateApplyPlan({
-    report: createCandidateRichReport(),
+    report,
     currentReport: createCurrentThemeReport("Light+"),
-    latestSolution: createActiveSolution(),
-    candidateId: "lowContrast-comment-editor.tokenColorCustomizations-comments",
+    candidate: createCommentCandidate(report),
     existingSettings: createExistingSettings()
   });
 
@@ -59,18 +23,21 @@ test("createEditorViewerCandidateApplyPlan returns staleReport when viewer theme
   });
 });
 
-test("createEditorViewerCandidateApplyPlan returns ready with selected candidate and patch plan", () => {
+test("createEditorViewerCandidateApplyPlan returns ready with selected candidate and patch plan when reports match", () => {
+  const report = createCandidateRichReport();
+  const candidate = createCommentCandidate(report);
+
   const result = createEditorViewerCandidateApplyPlan({
-    report: createCandidateRichReport(),
+    report,
     currentReport: createCurrentThemeReport("Default Dark+"),
-    latestSolution: createActiveSolution(),
-    candidateId: "lowContrast-comment-editor.tokenColorCustomizations-comments",
+    candidate,
     existingSettings: createExistingSettings(),
     now: new Date("2026-06-08T00:00:00.000Z")
   });
 
   assert.equal(result.status, "ready");
-  assert.equal(result.selectedCandidate.id, "lowContrast-comment-editor.tokenColorCustomizations-comments");
+  assert.equal(result.selectedCandidate, candidate);
+  assert.equal(result.selectedCandidate.id, COMMENT_CANDIDATE_ID);
   assert.deepEqual(
     result.patchPlan.nextSettings["editor.tokenColorCustomizations"]["[Default Dark+]"],
     {
@@ -80,23 +47,28 @@ test("createEditorViewerCandidateApplyPlan returns ready with selected candidate
   );
 });
 
-function createActiveSolution() {
+test("createEditorViewerCandidateApplyPlan skips the stale check when no currentReport is supplied", () => {
   const report = createCandidateRichReport();
-  const candidates = createPatchCandidates(report, [...LOW_CONTRAST_MAPPINGS, ...SIMILAR_SIGNAL_MAPPINGS]);
+  const candidate = createCommentCandidate(report);
 
-  return {
-    intent: {
-      source: "viewerClick",
-      signal: "comment",
-      sampleId: "syntax-sample",
-      targetId: "syntax-comment",
-      severity: "unspecified",
-      message: "comment"
-    },
-    status: "candidates",
-    risks: report.risks.filter((risk) => risk.type === "lowContrast" && risk.signal === "comment"),
-    candidates
-  };
+  const result = createEditorViewerCandidateApplyPlan({
+    report,
+    candidate,
+    existingSettings: createExistingSettings(),
+    now: new Date("2026-06-08T00:00:00.000Z")
+  });
+
+  assert.equal(result.status, "ready");
+  assert.equal(result.selectedCandidate.id, COMMENT_CANDIDATE_ID);
+});
+
+function createCommentCandidate(report) {
+  const candidates = createPatchCandidates(report, [...LOW_CONTRAST_MAPPINGS, ...SIMILAR_SIGNAL_MAPPINGS]);
+  const candidate = candidates.find((entry) => entry.id === COMMENT_CANDIDATE_ID);
+
+  assert.ok(candidate, `expected engine to produce candidate ${COMMENT_CANDIDATE_ID}`);
+
+  return candidate;
 }
 
 function createCandidateRichReport() {
