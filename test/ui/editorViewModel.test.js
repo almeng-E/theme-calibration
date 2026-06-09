@@ -5,7 +5,7 @@ const assert = require("node:assert/strict");
 const {
   createEditorViewerModel,
   findEditorViewerRegion
-} = require("../../out/ui/diagnosticViewModel");
+} = require("../../out/ui/editorViewModel");
 
 test("createEditorViewerModel creates editor-like samples from current theme signals", () => {
   const model = createEditorViewerModel(createFakeReport());
@@ -13,14 +13,27 @@ test("createEditorViewerModel creates editor-like samples from current theme sig
   assert.equal(model.themeName, "Sample Dark");
   assert.equal(model.signals.background, "#101010");
   assert.equal(model.signals.comment, "#222222");
-  assert.equal(model.samples.length, 3);
-  assert.deepEqual(model.samples.map((sample) => sample.kind), ["syntax", "diagnostic", "diff"]);
+  assert.equal(model.samples.length, 5);
+  assert.deepEqual(model.samples.map((sample) => sample.id), [
+    "python-sample",
+    "ts-sample",
+    "html-sample",
+    "diagnostic-sample",
+    "diff-sample"
+  ]);
+  assert.deepEqual(model.samples.map((sample) => sample.kind), [
+    "syntax",
+    "syntax",
+    "syntax",
+    "diagnostic",
+    "diff"
+  ]);
   assert.equal(model.risks.length, 1);
 });
 
 test("createEditorViewerModel exposes stable clickable intent for syntax regions", () => {
   const model = createEditorViewerModel(createFakeReport());
-  const region = findEditorViewerRegion(model, "syntax-comment");
+  const region = findEditorViewerRegion(model, "py-comment");
 
   assert.ok(region);
   assert.equal(region.signal, "comment");
@@ -28,8 +41,8 @@ test("createEditorViewerModel exposes stable clickable intent for syntax regions
   assert.deepEqual(region.intent, {
     source: "viewerClick",
     signal: "comment",
-    sampleId: "syntax-sample",
-    targetId: "syntax-comment",
+    sampleId: "python-sample",
+    targetId: "py-comment",
     severity: "unspecified",
     message: "Comment visibility needs review."
   });
@@ -54,7 +67,10 @@ test("createEditorViewerModel falls back missing signals to editor defaults", ()
 
   assert.equal(model.themeName, "Sparse Theme");
   assert.equal(model.signals.background, "#1e1e1e");
-  assert.equal(findEditorViewerRegion(model, "syntax-keyword").color, "#569cd6");
+
+  const keywordRegion = findEditorViewerRegion(model, "py-def");
+  assert.equal(keywordRegion.signal, "keyword");
+  assert.equal(keywordRegion.color, "#569cd6");
 });
 
 function createFakeReport() {

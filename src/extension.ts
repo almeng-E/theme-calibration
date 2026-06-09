@@ -6,17 +6,15 @@ import { CANDIDATE_ROLLBACK_STATE_KEY, COMMAND_IDS, OUTPUT_CHANNEL_NAME } from "
 import { createIntentSolutionNotification } from "./ui/notificationFormatter";
 import { createEditorViewerModel } from "./ui/editorViewModel";
 import { renderEditorViewerHtml } from "./ui/editorViewHtml";
-import { renderSamplesHtml } from "./ui/components/sliderArea";
+import { renderAfterLayerHtml } from "./ui/afterLayer";
+import { CandidateSaveSession } from "./patch/candidateSaveSession";
 import { createPatchCandidates, createPatchRecipeFromCandidates } from "./diagnose/diagnosticEngine";
 import { createIntentSolution } from "./diagnose/intentSolution";
 import { createPreviewModel, renderPreviewHtml, extractPatchSignals } from "./ui/previewHtml";
 import {
-  buildPatchPlan,
   buildRollbackPlan,
-  wrapRecipeForTheme,
   createCandidatePatchApplyPlan
 } from "./patch/patchService";
-import { createEditorViewerCandidateApplyPlan } from "./patch/editorViewerApplyService";
 import {
   collectThemeSnapshot,
   readCurrentPatchableSettings,
@@ -376,17 +374,33 @@ function openEditorViewerPanel(
   );
 
   panel.webview.html = html;
-  let latestSolution: ReturnType<typeof createIntentSolution> | undefined;
-  // 초기에는 추천된 모든 후보가 B레이어에 적용되어 있다고 가정합니다.
-  const activeCandidates: PatchCandidate[] = [...initialCandidates];
-  const baseSignals = normalizeReportSignals(report.signals);
+  const target = vscode.ConfigurationTarget.Global;
+
+  // 배치/지연 저장 세션. Accept/Reject는 이 세션에 스테이징만 하고,
+  // 명시적 Save 클릭 시점에만 일괄 적용됩니다 (단일 롤백 스냅샷).
+  const session = new CandidateSaveSession({
+    report,
+    candidates: initialCandidates,
+    existingSettings: readCurrentPatchableSettings(vscode, target)
+  });
+  // 초기 추천 후보는 기본적으로 accepted 상태입니다 (인라인 JS 시딩과 동일한 가정).
+  for (const candidate of initialCandidates) {
+    session.accept(candidate.id);
+  }
+
+  // 스테이징 변경 후 라이브 B-레이어 프리뷰를 다시 그려 웹뷰로 전송합니다 (WIRING ONLY).
+  async function postAfterLayerPreview(): Promise<void> {
+    const html = renderAfterLayerHtml(report, session.getAcceptedCandidates());
+    await panel.webview.postMessage({ type: "updateAfterHtml", html });
+  }
 
   panel.webview.onDidReceiveMessage(async (message) => {
     try {
       if (message?.type === "regionClick") {
         const intent = message.intent;
         const solution = createIntentSolution(report, intent, candidateRules);
-        latestSolution = solution;
+        // 새로 노출된 후보를 세션에 등록해 Accept/Reject 대상이 되도록 합니다.
+        session.registerCandidates(solution.candidates);
         const notification = createIntentSolutionNotification(solution);
 
         await panel.webview.postMessage({
@@ -409,96 +423,91 @@ function openEditorViewerPanel(
         const candidateId = typeof message.candidateId === "string" ? message.candidateId : "";
         if (!candidateId) return;
 
-        let candidate = activeCandidates.find((c) => c.id === candidateId);
-        let isNewToActive = false;
-
-        if (!candidate) {
-          candidate = initialCandidates.find((c) => c.id === candidateId);
-          
-          if (!candidate && latestSolution) {
-            const candidates = Array.isArray(latestSolution.candidates) ? latestSolution.candidates : [];
-            candidate = candidates.find((c) => c.id === candidateId);
-          }
-
-          if (candidate) {
-            activeCandidates.push(candidate);
-            isNewToActive = true;
-          }
+        // STAGE ONLY: 설정 저장 없음. 알 수 없는 id는 방어적으로 무시합니다.
+        try {
+          session.accept(candidateId);
+        } catch {
+          return;
         }
-
-        if (isNewToActive) {
-          // Recalculate afterSignals based on accumulated candidates
-          const afterSignals = { ...baseSignals };
-          for (const c of activeCandidates) {
-            for (const sig of c.signals) {
-              afterSignals[sig] = c.suggestedColor;
-            }
-          }
-
-          // Create a new model just to extract the afterSamples
-          const newModel = createEditorViewerModel(report, afterSignals);
-          const newLayerBHtml = renderSamplesHtml(newModel.afterSamples || []);
-
-          // Send updated B layer HTML to Webview
-          await panel.webview.postMessage({
-            type: "updateAfterHtml",
-            html: newLayerBHtml
-          });
-        }
-
-        const target = vscode.ConfigurationTarget.Global;
-        if (!candidate) return; // 찾지 못한 경우 안전하게 종료
-
-        const currentProbe = await collectThemeSnapshot(vscode, { includeThemeDefinitions: true });
-        const currentReport = createThemeSignalReport(currentProbe);
-
-        // candidate가 반드시 존재하므로 직접 전달합니다.
-        const applyResult = createEditorViewerCandidateApplyPlan({
-          report,
-          currentReport,
-          candidate: candidate, // 찾은 candidate를 직접 주입
-          existingSettings: readCurrentPatchableSettings(vscode, target)
-        });
-
-        if (applyResult.status === "staleReport") {
-          return; 
-        }
-
-        await applyPatchPlanWithRollback({
-          patchPlan: applyResult.patchPlan,
-          saveRollback: (snapshot) => context.globalState.update(CANDIDATE_ROLLBACK_STATE_KEY, snapshot),
-          writeSettings: (updates) => writeSettingsToVscode(vscode, updates, target)
-        });
-
-        console.log("[Color Calibration] Candidate patch applied from webview", applyResult);
-        vscode.window.showInformationMessage("Applied 1 candidate patch(es).");
+        await postAfterLayerPreview();
+        return;
       }
 
       if (message?.type === "rejectCandidatePatch") {
         const candidateId = typeof message.candidateId === "string" ? message.candidateId : "";
         if (!candidateId) return;
 
-        const idx = activeCandidates.findIndex((c) => c.id === candidateId);
-        if (idx !== -1) {
-          activeCandidates.splice(idx, 1);
-
-          // Recalculate afterSignals based on remaining candidates
-          const afterSignals = { ...baseSignals };
-          for (const c of activeCandidates) {
-            for (const sig of c.signals) {
-              afterSignals[sig] = c.suggestedColor;
-            }
-          }
-
-          // Update B layer HTML
-          const newModel = createEditorViewerModel(report, afterSignals);
-          const newLayerBHtml = renderSamplesHtml(newModel.afterSamples || []);
-
-          await panel.webview.postMessage({
-            type: "updateAfterHtml",
-            html: newLayerBHtml
-          });
+        try {
+          session.reject(candidateId);
+        } catch {
+          return;
         }
+        await postAfterLayerPreview();
+        return;
+      }
+
+      if (message?.type === "setCandidateColor") {
+        const candidateId = typeof message.candidateId === "string" ? message.candidateId : "";
+        const color = typeof message.color === "string" ? message.color : "";
+        if (!candidateId || !color) return;
+
+        // STAGE ONLY: setColorOverride auto-accepts + records the override.
+        // NO settings write. Unknown id / invalid hex are ignored defensively
+        // (the model throws; we swallow like the accept/reject guards).
+        try {
+          session.setColorOverride(candidateId, color);
+        } catch {
+          return;
+        }
+        // postAfterLayerPreview uses getAcceptedCandidates() (override-applied),
+        // so the live B-layer reflects the new color immediately.
+        await postAfterLayerPreview();
+        return;
+      }
+
+      if (message?.type === "saveCandidates") {
+        // FRESH 설정/리포트를 읽어 일괄 적용 계획을 계산합니다 (WIRING ONLY).
+        const freshSettings = readCurrentPatchableSettings(vscode, target);
+        const currentProbe = await collectThemeSnapshot(vscode, { includeThemeDefinitions: true });
+        const currentReport = createThemeSignalReport(currentProbe);
+
+        const plan = session.computeApplyPlan({
+          currentReport,
+          existingSettings: freshSettings,
+          now: new Date()
+        });
+
+        if (plan.status === "staleReport") {
+          await panel.webview.postMessage({ type: "saveResult", ok: false, reason: "stale" });
+          vscode.window.showWarningMessage("Theme changed since the viewer opened. Reopen the viewer before saving.");
+          return;
+        }
+
+        if (plan.status === "noStagedCandidates") {
+          await panel.webview.postMessage({ type: "saveResult", ok: false, reason: "empty" });
+          vscode.window.showInformationMessage("No accepted changes to save.");
+          return;
+        }
+
+        // CRITICAL (no silent success): 실제 쓰기가 성공한 뒤에만 ok:true를 보냅니다.
+        try {
+          await applyPatchPlanWithRollback({
+            patchPlan: plan.patchPlan,
+            saveRollback: (snapshot) => context.globalState.update(CANDIDATE_ROLLBACK_STATE_KEY, snapshot),
+            writeSettings: (updates) => writeSettingsToVscode(vscode, updates, target)
+          });
+        } catch (saveError) {
+          const saveMessage = getErrorMessage(saveError);
+          await panel.webview.postMessage({ type: "saveResult", ok: false, reason: "error", message: saveMessage });
+          vscode.window.showErrorMessage(`Save failed: ${saveMessage}`);
+          return;
+        }
+
+        const count = plan.selectedCandidates.length;
+        await panel.webview.postMessage({ type: "saveResult", ok: true, count });
+        console.log("[Color Calibration] Candidate batch saved from webview", plan);
+        vscode.window.showInformationMessage(`Saved ${count} candidate patch(es).`);
+        return;
       }
     } catch (error) {
       const errorMessage = getErrorMessage(error);

@@ -97,7 +97,7 @@ export function renderPreviewHtml(model: PreviewModel): string {
   const candidateSection = model.candidates?.length ? renderCandidateSection(model) : "";
 
   return `<!doctype html>
-<html lang="ko">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">

@@ -1,3 +1,11 @@
 node_modules/
 out/
 *.vsix
+
+# Scratch / debug artifacts (must never be committed)
+*.diff
+*.patch
+full_diff.txt
+test_output.txt
+commit_msg.txt
+dummy.txt
