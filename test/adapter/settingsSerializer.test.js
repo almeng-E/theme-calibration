@@ -5,7 +5,6 @@ const assert = require("node:assert/strict");
 const {
   buildPatchPlan,
   buildRollbackPlan,
-  wrapRecipeForTheme,
   createPatchRecipeFromCandidates,
   serializeCandidatePatch
 } = require("../../out/adapter/vscode/settingsSerializer");
@@ -83,16 +82,6 @@ test("buildRollbackPlan restores exactly the settings captured in the snapshot",
   ]);
 });
 
-test("wrapRecipeForTheme scopes workbench colors to the configured theme", () => {
-  const recipe = wrapRecipeForTheme("Default Dark+", SAMPLE_PATCH_RECIPE);
-
-  assert.ok(recipe.settings["workbench.colorCustomizations"]["[Default Dark+]"]);
-  assert.equal(
-    recipe.settings["workbench.colorCustomizations"]["[Default Dark+]"]["editorError.foreground"],
-    SAMPLE_PATCH_RECIPE.settings["workbench.colorCustomizations"]["editorError.foreground"]
-  );
-});
-
 test("buildPatchPlan preserves existing values inside a theme-specific customization bucket", () => {
   const existingSettings = {
     "workbench.colorCustomizations": {
@@ -103,7 +92,23 @@ test("buildPatchPlan preserves existing values inside a theme-specific customiza
     "editor.tokenColorCustomizations": {},
     "editor.semanticTokenColorCustomizations": {}
   };
-  const recipe = wrapRecipeForTheme("Default Dark+", SAMPLE_PATCH_RECIPE);
+  const recipe = createPatchRecipeFromCandidates(
+    [
+      {
+        id: "similarSignal-error-diffDeleted-workbench.colorCustomizations-editorError.foreground",
+        riskType: "similarSignal",
+        signals: ["error"],
+        settingId: "workbench.colorCustomizations",
+        settingKey: "editorError.foreground",
+        currentSignals: { error: "#f44747" },
+        suggestedColor: "#ff6b6b",
+        reason: "error needs separation.",
+        scope: "theme",
+        confidence: 0.7
+      }
+    ],
+    "Default Dark+"
+  );
 
   const plan = buildPatchPlan(existingSettings, recipe);
 
@@ -113,7 +118,7 @@ test("buildPatchPlan preserves existing values inside a theme-specific customiza
   );
   assert.equal(
     plan.nextSettings["workbench.colorCustomizations"]["[Default Dark+]"]["editorError.foreground"],
-    SAMPLE_PATCH_RECIPE.settings["workbench.colorCustomizations"]["editorError.foreground"]
+    "#ff6b6b"
   );
 });
 

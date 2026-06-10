@@ -9,12 +9,10 @@ import { renderAfterLayerHtml } from "./ui/afterLayer";
 import { CandidateSaveSession } from "./patch/candidateSaveSession";
 import { createPatchCandidates } from "./diagnose/diagnosticEngine";
 import { createIntentSolution } from "./diagnose/intentSolution";
-import { createPreviewModel, renderPreviewHtml } from "./ui/previewHtml";
 import { overlayCandidateColors } from "./ui/themeColorOverlay";
 import {
   buildRollbackPlan,
-  serializeCandidatePatch,
-  createPatchRecipeFromCandidates
+  serializeCandidatePatch
 } from "./adapter/vscode/settingsSerializer";
 import {
   collectThemeSnapshot,
@@ -47,19 +45,8 @@ export function activate(context: vscode.ExtensionContext): void {
 
   context.subscriptions.push(
     output,
-    registerCommand(output, COMMAND_IDS.printThemeProbe, "Theme probe", handlePrintProbe),
-    registerCommand(output, COMMAND_IDS.printThemeSignalReport, "Theme signal report", handlePrintSignalReport),
-    registerCommand(output, COMMAND_IDS.printPatchCandidates, "Patch candidate generation", (out) =>
-      handlePrintPatchCandidates(out, getCandidateRules)
-    ),
-    registerCommand(output, COMMAND_IDS.openCandidatePreview, "Candidate preview", (out) =>
-      handleOpenCandidatePreview(out, getCandidateRules)
-    ),
     registerCommand(output, COMMAND_IDS.openEditorViewer, "Editor viewer", (out) =>
       handleOpenEditorViewer(out, context, getCandidateRules)
-    ),
-    registerCommand(output, COMMAND_IDS.applyCandidatePatch, "Candidate patch apply", (out) =>
-      handleApplyCandidatePatch(out, context, getCandidateRules)
     ),
     registerCommand(output, COMMAND_IDS.rollbackCandidatePatch, "Candidate patch rollback", (out) => handleRollbackCandidatePatch(out, context))
   );
@@ -97,95 +84,6 @@ function registerCommand(
 // ============================================================
 
 type CandidateRulesProvider = () => Promise<CandidateRuleDto[]>;
-
-async function handlePrintProbe(output: vscode.OutputChannel): Promise<void> {
-  const probe = await collectThemeSnapshot(vscode, { includeThemeDefinitions: true });
-
-  output.appendLine(JSON.stringify(probe, null, 2));
-  console.log("[Color Calibration] Theme probe", probe);
-  vscode.window.showInformationMessage(
-    `Theme probe printed: current theme "${probe.currentTheme.configuredName || "unknown"}", installed themes ${probe.installedThemes.length}.`
-  );
-}
-
-async function handlePrintSignalReport(output: vscode.OutputChannel): Promise<void> {
-  const probe = await collectThemeSnapshot(vscode, { includeThemeDefinitions: true });
-  const report = createThemeSignalReport(probe);
-
-  output.appendLine(JSON.stringify(report, null, 2));
-  console.log("[Color Calibration] Theme signal report", report);
-  vscode.window.showInformationMessage(
-    `Theme signal report printed: ${report.theme.configuredName || "unknown"}, risks ${report.risks.length}.`
-  );
-}
-
-async function handlePrintPatchCandidates(
-  output: vscode.OutputChannel,
-  getCandidateRules: CandidateRulesProvider
-): Promise<void> {
-  const candidateRules = await getCandidateRules();
-  const probe = await collectThemeSnapshot(vscode, { includeThemeDefinitions: true });
-  const report = createThemeSignalReport(probe);
-  const candidates = createPatchCandidates(report, candidateRules);
-  const recipe = createPatchRecipeFromCandidates(candidates, report.theme.configuredName);
-
-  output.appendLine(JSON.stringify({ theme: report.theme, candidates, recipe }, null, 2));
-  console.log("[Color Calibration] Patch candidates", { report, candidates, recipe });
-  vscode.window.showInformationMessage(
-    `Patch candidates printed: ${report.theme.configuredName || "unknown"}, candidates ${candidates.length}.`
-  );
-}
-
-
-
-async function handleOpenCandidatePreview(
-  output: vscode.OutputChannel,
-  getCandidateRules: CandidateRulesProvider
-): Promise<void> {
-  const candidateRules = await getCandidateRules();
-  const probe = await collectThemeSnapshot(vscode, { includeThemeDefinitions: true });
-  const report = createThemeSignalReport(probe);
-  const candidates = createPatchCandidates(report, candidateRules);
-
-  if (candidates.length === 0) {
-    output.appendLine("Candidate preview skipped: no-candidates.");
-    vscode.window.showWarningMessage("No patch candidates were generated for the current theme.");
-    return;
-  }
-
-  const selectedItem = await vscode.window.showQuickPick(
-    candidates.map(toCandidateQuickPickItem),
-    {
-      canPickMany: false,
-      title: "Color Calibration: Open Candidate Preview",
-      placeHolder: "Select one candidate to preview."
-    }
-  );
-
-  if (!selectedItem) {
-    output.appendLine("Candidate preview cancelled.");
-    return;
-  }
-
-  const patchRecipe = createPatchRecipeFromCandidates([selectedItem.candidate], report.theme.configuredName);
-  const previewModel = createPreviewModel(report, patchRecipe, {
-    candidates,
-    selectedCandidateId: selectedItem.candidate.id
-  });
-
-  openPreviewPanel("colorCalibrationCandidatePreview", "Color Calibration Candidate Preview", previewModel);
-
-  output.appendLine(JSON.stringify({
-    themeName: previewModel.themeName,
-    selectedCandidateId: selectedItem.candidate.id,
-    candidateCount: candidates.length,
-    after: previewModel.after.signals
-  }, null, 2));
-  console.log("[Color Calibration] Candidate preview", previewModel);
-  vscode.window.showInformationMessage(
-    `Candidate preview opened for ${previewModel.themeName}: ${selectedItem.candidate.settingKey}.`
-  );
-}
 
 async function handleOpenEditorViewer(
   output: vscode.OutputChannel,
@@ -229,63 +127,6 @@ async function handleOpenEditorViewer(
 
 
 
-async function handleApplyCandidatePatch(
-  output: vscode.OutputChannel,
-  context: vscode.ExtensionContext,
-  getCandidateRules: CandidateRulesProvider
-): Promise<void> {
-  const candidateRules = await getCandidateRules();
-  const target = vscode.ConfigurationTarget.Global;
-  const probe = await collectThemeSnapshot(vscode, { includeThemeDefinitions: true });
-  const report = createThemeSignalReport(probe);
-  const candidates = createPatchCandidates(report, candidateRules);
-
-  if (candidates.length === 0) {
-    output.appendLine("Candidate patch apply skipped: no-candidates.");
-    vscode.window.showWarningMessage("No patch candidates were generated for the current theme.");
-    return;
-  }
-
-  const selectedItems = await vscode.window.showQuickPick(
-    candidates.map(toCandidateQuickPickItem),
-    {
-      canPickMany: true,
-      title: "Color Calibration: Apply Candidate Patch",
-      placeHolder: "Select one or more candidates to apply to the current theme."
-    }
-  );
-
-  if (!selectedItems || selectedItems.length === 0) {
-    output.appendLine("Candidate patch apply cancelled.");
-    return;
-  }
-
-  const selectedCandidates = selectedItems.map((item) => item.candidate);
-  const existingSettings = readCurrentPatchableSettings(vscode, target);
-  const patchPlan = serializeCandidatePatch(
-    selectedCandidates,
-    report.theme.configuredName,
-    existingSettings
-  );
-
-  await applyPatchPlanWithRollback({
-    patchPlan,
-    saveRollback: (snapshot) => context.globalState.update(CANDIDATE_ROLLBACK_STATE_KEY, snapshot),
-    writeSettings: (updates) => writeSettingsToVscode(vscode, updates, target)
-  });
-
-  output.appendLine(JSON.stringify({
-    themeName: report.theme.configuredName,
-    selectedCandidateIds: selectedCandidates.map((candidate) => candidate.id),
-    settingsUpdates: patchPlan.settingsUpdates,
-    rollbackStateKey: CANDIDATE_ROLLBACK_STATE_KEY
-  }, null, 2));
-  console.log("[Color Calibration] Candidate patch applied", { selectedCandidates, patchPlan });
-  vscode.window.showInformationMessage(`Applied ${selectedCandidates.length} candidate patch(es).`);
-}
-
-
-
 async function handleRollbackCandidatePatch(output: vscode.OutputChannel, context: vscode.ExtensionContext): Promise<void> {
   const rollbackSnapshot = context.globalState.get<VscodeRollbackSnapshot>(CANDIDATE_ROLLBACK_STATE_KEY);
 
@@ -314,41 +155,6 @@ async function handleRollbackCandidatePatch(output: vscode.OutputChannel, contex
 // ============================================================
 // UI Helpers
 // ============================================================
-
-interface CandidateQuickPickItem extends vscode.QuickPickItem {
-  candidate: CandidateDto;
-}
-
-function toCandidateQuickPickItem(candidate: CandidateDto): CandidateQuickPickItem {
-  return {
-    label: candidate.settingKey,
-    description: `${candidate.scope} | ${candidate.riskType} | confidence ${candidate.confidence.toFixed(2)}`,
-    detail: candidate.reason,
-    candidate
-  };
-}
-
-function openPreviewPanel(
-  viewType: string,
-  title: string,
-  previewModel: ReturnType<typeof createPreviewModel>
-): void {
-  openHtmlPanel(viewType, title, renderPreviewHtml(previewModel));
-}
-
-function openHtmlPanel(viewType: string, title: string, html: string): void {
-  const panel = vscode.window.createWebviewPanel(
-    viewType,
-    title,
-    vscode.ViewColumn.Beside,
-    {
-      enableScripts: true,
-      retainContextWhenHidden: true
-    }
-  );
-
-  panel.webview.html = html;
-}
 
 function openEditorViewerPanel(
   viewType: string,

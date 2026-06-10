@@ -8,12 +8,7 @@ export interface SettingDescriptor {
 export const OUTPUT_CHANNEL_NAME = "Color Calibration Theme Probe";
 
 export const COMMAND_IDS = {
-  printThemeProbe: "colorCalibration.printThemeProbe",
-  printThemeSignalReport: "colorCalibration.printThemeSignalReport",
-  printPatchCandidates: "colorCalibration.printPatchCandidates",
-  openCandidatePreview: "colorCalibration.openCandidatePreview",
   openEditorViewer: "colorCalibration.openEditorViewer",
-  applyCandidatePatch: "colorCalibration.applyCandidatePatch",
   rollbackCandidatePatch: "colorCalibration.rollbackCandidatePatch"
 } as const;
 

@@ -15,14 +15,12 @@ test("package manifest exposes only the public editor viewer command", () => {
   );
 });
 
-test("package manifest keeps internal commands activatable for development use", () => {
-  const activationEvents = new Set(manifest.activationEvents);
-
-  assert.ok(activationEvents.has("onCommand:colorCalibration.printThemeProbe"));
-  assert.ok(activationEvents.has("onCommand:colorCalibration.printThemeSignalReport"));
-  assert.ok(activationEvents.has("onCommand:colorCalibration.printPatchCandidates"));
-  assert.ok(activationEvents.has("onCommand:colorCalibration.openCandidatePreview"));
-  assert.ok(activationEvents.has("onCommand:colorCalibration.applyCandidatePatch"));
-  assert.ok(activationEvents.has("onCommand:colorCalibration.rollbackCandidatePatch"));
-  assert.ok(activationEvents.has("onCommand:colorCalibration.openEditorViewer"));
+test("package manifest activates only the editor viewer and rollback commands", () => {
+  assert.deepEqual(
+    [...manifest.activationEvents].sort(),
+    [
+      "onCommand:colorCalibration.openEditorViewer",
+      "onCommand:colorCalibration.rollbackCandidatePatch"
+    ].sort()
+  );
 });

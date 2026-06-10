@@ -11,12 +11,7 @@
     "Other"
   ],
   "activationEvents": [
-    "onCommand:colorCalibration.printThemeProbe",
-    "onCommand:colorCalibration.printThemeSignalReport",
-    "onCommand:colorCalibration.printPatchCandidates",
-    "onCommand:colorCalibration.openCandidatePreview",
     "onCommand:colorCalibration.openEditorViewer",
-    "onCommand:colorCalibration.applyCandidatePatch",
     "onCommand:colorCalibration.rollbackCandidatePatch"
   ],
   "main": "./out/extension.js",

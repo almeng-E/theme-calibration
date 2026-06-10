@@ -129,25 +129,6 @@ export function buildRollbackPlan(rollbackSnapshot: VscodeRollbackSnapshot | und
   };
 }
 
-export function wrapRecipeForTheme(
-  themeName: string | undefined,
-  baseRecipe: VscodePatchRecipe
-): VscodePatchRecipe {
-  if (!themeName) {
-    return baseRecipe;
-  }
-
-  return {
-    ...baseRecipe,
-    settings: {
-      ...baseRecipe.settings,
-      "workbench.colorCustomizations": {
-        [`[${themeName}]`]: clonePlainSetting(baseRecipe.settings["workbench.colorCustomizations"])
-      }
-    }
-  };
-}
-
 function mergePlainObjects(base: VscodeSettingDictionary, override: VscodeSettingDictionary): VscodeSettingDictionary {
   const baseClone = clonePlainSetting(base);
   const overrideClone = clonePlainSetting(override);
