@@ -17,7 +17,11 @@ export function renderTopBar(samples: ViewerSampleDto[]): string {
         ${tabs}
       </nav>
       <div class="t2-title">
-        Improvement Candidates
+        <span class="t2-title-text">Improvement Candidates</span>
+        <div class="t2-actions">
+          <span class="save-status" data-save-status></span>
+          <button type="button" id="save-button" class="save-button" data-save-button>Save Changes</button>
+        </div>
       </div>
     </header>
   `;

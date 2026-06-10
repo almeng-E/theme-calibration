@@ -9,9 +9,11 @@ export function renderSliderArea(samplesA: ViewerSampleDto[], samplesB: ViewerSa
     <section class="m1-editor-container" id="slider-container">
       <div class="slider-wrapper">
         <div class="slider-layer slider-layer-a" id="layer-a">
+          <span class="layer-label layer-label-a">Before</span>
           <div class="editor-content">${contentA}</div>
         </div>
         <div class="slider-layer slider-layer-b" id="layer-b">
+          <span class="layer-label layer-label-b">After</span>
           <div class="editor-content">${contentB}</div>
         </div>
         <div class="slider-handle" id="slider-handle"></div>

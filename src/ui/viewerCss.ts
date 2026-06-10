@@ -67,9 +67,48 @@ export const viewerCss = `
       padding: 0 16px;
       display: flex;
       align-items: center;
+      justify-content: space-between;
+      gap: 8px;
       font-weight: 600;
       font-size: 14px;
       border-left: 1px solid var(--border);
+    }
+    .t2-title-text {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .t2-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+    .t2-actions .save-status {
+      margin: 0;
+      font-weight: 400;
+      font-size: 11px;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+    .save-button {
+      border: 1px solid var(--btn-border);
+      border-radius: 6px;
+      background: var(--primary);
+      color: var(--vscode-button-foreground, #fff);
+      padding: 4px 12px;
+      font: inherit;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .save-button:hover {
+      background: var(--vscode-button-hoverBackground, var(--primary));
+    }
+    .save-button:disabled {
+      opacity: 0.6;
+      cursor: default;
     }
 
     /* Main Area Layout */
@@ -108,6 +147,25 @@ export const viewerCss = `
     .editor-content {
       padding: 24px;
     }
+
+    /* Before/After overlay badges on the split view */
+    .layer-label {
+      position: absolute;
+      top: 8px;
+      z-index: 5;
+      padding: 2px 8px;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--text);
+      background: rgba(0, 0, 0, 0.45);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      pointer-events: none;
+    }
+    .layer-label-a { left: 8px; }
+    .layer-label-b { right: 8px; }
     
     /* Slider Handle */
     .slider-handle {
