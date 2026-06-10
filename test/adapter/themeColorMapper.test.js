@@ -29,6 +29,110 @@ test("createThemeSignalReport extracts key theme signals and detects simple risk
   assert.ok(report.risks.some((risk) => risk.type === "similarSignal" && risk.signals.includes("error") && risk.signals.includes("diffDeleted")));
 });
 
+test("createThemeSignalReport uses effective colors from saved customizations (overriding base)", () => {
+  const probe = createFakeProbe();
+  probe.currentTheme.settings = {
+    "workbench.colorCustomizations": {
+      effectiveValue: { "[Sample Dark]": { "editorError.foreground": "#ff6b6b" } }
+    },
+    "editor.tokenColorCustomizations": {
+      effectiveValue: { "[Sample Dark]": { comments: "#ff0505" } }
+    }
+  };
+
+  const report = createThemeSignalReport(probe);
+
+  // effective overrides base
+  assert.equal(report.signals.comment.value, "#ff0505");
+  assert.equal(report.signals.comment.source, "tokenColorCustomizations.comments");
+  assert.equal(report.signals.error.value, "#ff6b6b");
+  assert.equal(report.signals.error.source, "colorCustomizations.editorError.foreground");
+  // untouched roles keep base
+  assert.equal(report.signals.string.value, "#ce9178");
+  assert.equal(report.signals.background.value, "#101010");
+  // risks computed on effective signals: comment is now bright, no longer low-contrast vs base
+  assert.ok(!report.risks.some((risk) => risk.type === "lowContrast" && risk.signal === "comment"));
+});
+
+test("createThemeSignalReport applies theme-scoped customizations over global ones", () => {
+  const probe = createFakeProbe();
+  probe.currentTheme.settings = {
+    "workbench.colorCustomizations": {
+      effectiveValue: {
+        "editorError.foreground": "#aaaaaa",
+        "[Sample Dark]": { "editorError.foreground": "#bbbbbb" }
+      }
+    },
+    "editor.tokenColorCustomizations": {
+      effectiveValue: {
+        comments: "#cccccc",
+        "[Sample Dark]": { comments: "#dddddd" }
+      }
+    }
+  };
+
+  const report = createThemeSignalReport(probe);
+
+  assert.equal(report.signals.error.value, "#bbbbbb");
+  assert.equal(report.signals.comment.value, "#dddddd");
+});
+
+test("createThemeSignalReport applies global (unscoped) customizations when no theme-scoped entry", () => {
+  const probe = createFakeProbe();
+  probe.currentTheme.settings = {
+    "workbench.colorCustomizations": {
+      effectiveValue: { "editorError.foreground": "#aaaaaa" }
+    },
+    "editor.tokenColorCustomizations": {
+      effectiveValue: { comments: "#cccccc" }
+    }
+  };
+
+  const report = createThemeSignalReport(probe);
+
+  assert.equal(report.signals.error.value, "#aaaaaa");
+  assert.equal(report.signals.comment.value, "#cccccc");
+});
+
+test("createThemeSignalReport maps token named keys comments/strings/keywords to roles", () => {
+  const probe = createFakeProbe();
+  probe.currentTheme.settings = {
+    "editor.tokenColorCustomizations": {
+      effectiveValue: {
+        "[Sample Dark]": {
+          comments: "#111aaa",
+          strings: "#222bbb",
+          keywords: "#333ccc"
+        }
+      }
+    }
+  };
+
+  const report = createThemeSignalReport(probe);
+
+  assert.equal(report.signals.comment.value, "#111aaa");
+  assert.equal(report.signals.string.value, "#222bbb");
+  assert.equal(report.signals.keyword.value, "#333ccc");
+  assert.equal(report.signals.string.source, "tokenColorCustomizations.strings");
+  assert.equal(report.signals.keyword.source, "tokenColorCustomizations.keywords");
+});
+
+test("createThemeSignalReport falls back to base when customizations are malformed", () => {
+  for (const malformed of [undefined, { error: "boom" }, "not-an-object", 42, ["x"]]) {
+    const probe = createFakeProbe();
+    probe.currentTheme.settings = {
+      "workbench.colorCustomizations": { effectiveValue: malformed },
+      "editor.tokenColorCustomizations": { effectiveValue: malformed }
+    };
+
+    const report = createThemeSignalReport(probe);
+
+    // base values intact, no throw
+    assert.equal(report.signals.error.value, "#f44747");
+    assert.equal(report.signals.comment.value, "#222222");
+  }
+});
+
 test("createThemeSignalReport reports missing current theme definition gracefully", () => {
   const report = createThemeSignalReport({
     currentTheme: {
