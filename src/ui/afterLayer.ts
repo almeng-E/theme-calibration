@@ -1,6 +1,6 @@
 import type { ThemeColorHexMap, ThemeReportDto } from "../types/signal.types";
 import type { CandidateDto } from "../types/patch.types";
-import { normalizeReportSignals } from "../adapter/vscode/defaults";
+import { normalizeReportSignals } from "./themeColorDefaults";
 import { createEditorViewerModel } from "./editorViewModel";
 import { renderSamplesHtml } from "./components/sliderArea";
 

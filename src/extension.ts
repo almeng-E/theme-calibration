@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 import * as crypto from "crypto";
-import { normalizeReportSignals } from "./adapter/vscode/defaults";
+import { normalizeReportSignals } from "./ui/themeColorDefaults";
 import type { ThemeColorHexMap } from "./types/signal.types";
 import { CANDIDATE_ROLLBACK_STATE_KEY, COMMAND_IDS, OUTPUT_CHANNEL_NAME } from "./constants";
 import { createIntentSolutionNotification } from "./ui/notificationFormatter";

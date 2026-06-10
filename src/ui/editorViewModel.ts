@@ -11,7 +11,7 @@ import type {
   ViewerSampleDto,
   ViewerSampleKind
 } from "../types/editorViewer.types";
-import { SIGNAL_DEFAULTS, normalizeReportSignals } from "../adapter/vscode/defaults";
+import { SIGNAL_DEFAULTS, normalizeReportSignals } from "./themeColorDefaults";
 import {
   createPythonSample,
   createTypeScriptSample,

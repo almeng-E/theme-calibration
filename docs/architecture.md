@@ -1,104 +1,120 @@
 # Color Calibration 아키텍처 및 디렉토리 구조 명세
 
-이 문서는 Color Calibration Extension의 전체적인 아키텍처 설계와 데이터 흐름을 명확히 정의하여, 개발 및 Agent들의 이해를 돕기 위해 작성되었습니다.
+이 문서는 Color Calibration Extension의 현재 아키텍처와 데이터 흐름을 실제 코드 기준으로 정의한다. 개발자와 Agent가 코드 구조와 경계 규칙을 빠르게 파악하도록 돕는 것이 목적이다.
 
-## 1. 아키텍처 핵심 원칙 (Architectural Decisions)
+## 1. 아키텍처 핵심 원칙 (Hexagonal: Port vs Core)
 
-- **순수 함수와 부수 효과(I/O)의 엄격한 분리**: 비즈니스 핵심 로직(진단, 패치 데이터 조립, 직렬화)은 I/O가 없는 순수 함수로 구성되며, `Adapter` 계층에서만 외부 환경과 통신합니다.
-- **도메인 객체 (DTO) 패턴 적용**: `types/` 디렉토리에 정의된 타입들은 시스템 전반에서 통신을 위한 DTO(Data Transfer Object) 역할을 수행합니다. 특정 환경에 종속되지 않은 우리의 내부 공통 객체입니다.
-- **Serializer와 Adapter의 분리 (중요)**: `Serializer` 모듈은 내부 객체를 특정 환경(예: VS Code)의 JSON 형식으로 바꿔주는 "순수 데이터 변환" 역할만 합니다. 변환이 끝난 데이터를 `Adapter`에게 전달하여 실제 I/O 저장을 지시하는 역할은 Orchestrator인 `PatchService`가 담당합니다. (Serializer가 Adapter를 직접 호출하지 않습니다.)
+이 확장은 **헥사고날(포트 & 어댑터)** 구조를 따른다. VS Code에 종속된 모든 코드는 단 하나의 **포트(`src/adapter/vscode/`)** 안에 격리되고, 그 바깥의 **코어**는 에디터에 무관한 순수 로직이다.
+
+- **포트 (`adapter/vscode/`)**: VS Code API와의 I/O, VS Code 고유 데이터 형태(테마 파일, 설정 JSON)의 읽기/쓰기/직렬화를 전담한다. 비즈니스 판단(어떤 색이 위험한가)은 하지 않는다.
+- **코어 (`diagnose/`, `patch/`, `ui/`, `types/`, `utils/`)**: 에디터에 무관한 순수 영역. 진단·후보 생성·배치 저장 계획·뷰모델 구성을 담당한다.
+- **경계 규칙 (불변식)**: 코어(`diagnose`/`patch`/`utils`)는 `adapter/**`에서 아무것도 import하지 않으며, `Vscode*` 타입을 일절 사용하지 않는다. 포트와 코어는 오직 `*Dto` 타입을 통해서만 데이터를 주고받는다.
+- **조립 책임은 진입점에**: `extension.ts`가 포트와 코어를 와이어링한다. 코어 모듈(`patch`)이 포트(`io`/`serializer`)를 직접 호출하지 않는다 — 코어는 DTO만 반환하고, `extension.ts`가 그 DTO를 포트에 넘겨 직렬화·저장을 지시한다.
 
 ---
 
 ## 2. 디렉토리 구조 (Directory Structure)
 
-`src/` 하위 폴더는 철저히 역할(Role)과 데이터 흐름에 따라 분리되어 있습니다.
-
 ```text
 src/
- ├── types/        # [도메인 객체] 모든 계층이 공유하는 내부 공통 DTO 및 인터페이스 명세
- ├── adapter/      # [I/O] 외부 환경(VS Code API 등)과의 통신. Raw Data 로드 및 실제 쓰기(Save)
- ├── parser/       # [변환] Adapter가 가져온 Raw Data를 내부 도메인 Theme Data로 파싱
- ├── diagnose/     # [엔진] 룰 베이스 연산. 시그널을 검사하고 위험을 진단하며 교체 후보군 생성
- ├── patch/        # [제어] 유저의 변경 요청을 처리하는 흐름 제어(Orchestrator). 롤백 스냅샷 기록
- ├── serializer/   # [변환] 내부 객체(도메인 데이터)를 다시 VS Code 설정 포맷(Raw)으로 직렬화 (순수 함수)
- ├── ui/           # [표현] Webview ViewModel 구성, HTML 렌더링 및 알림 포맷팅 로직 격리
- └── extension.ts  # [진입점] 명령어 등록 및 전체 로직 체인을 조합하여 실행
+ ├── adapter/vscode/   # [PORT] VS Code에 종속된 유일한 영역 (I/O · raw 형태 변환 · 직렬화)
+ ├── diagnose/         # [CORE] 순수 진단 엔진 — 가시성 계산, 교체 후보 생성, intent 해결
+ ├── patch/            # [CORE] 배치 저장 세션(스테이징) 및 staleness 판정. DTO만 반환
+ ├── ui/               # [CORE] Webview ViewModel 구성, HTML 렌더링, 알림 포맷, signal 기본값
+ ├── types/            # [CORE] 계층 간 공유 DTO (*Dto) 및 인터페이스
+ ├── utils/            # [CORE] 색상/객체 순수 유틸
+ ├── constants.ts      # 설정 식별자·커맨드 ID 등 상수
+ └── extension.ts      # [진입점] 커맨드 등록 + 포트/코어 와이어링
 ```
 
-### 2.1. 각 계층별 기대 역할 및 검증(Test) 기준
-화이트박스 검증 및 향후 테스트 코드 작성 시, 다음의 규칙들이 각 모듈 내에서 반드시 지켜져야 합니다.
+### 2.1. 계층별 실제 파일과 역할
 
-- **`adapter/` (I/O 담당)**
-  - 역할: VS Code의 API와 직접 소통하며 테마 데이터를 읽고(`get`), 패치 데이터를 씁니다(`update`).
-  - 제약: 비즈니스 판단(어떤 색상이 좋은지, 위험한지) 로직이 **절대** 포함되어서는 안 됩니다.
-  - 테스트: 실제 VS Code API 객체를 모킹(Mocking)하여, I/O 메서드가 정확한 파라미터로 호출되는지만 검증합니다.
-
-- **`parser/` (로더 및 파서)**
-  - 역할: 외부의 JSON 형태인 Raw 테마 데이터를 파싱하여 `types/`에 정의된 내부 도메인 객체로 변환합니다.
-  - 제약: 파일시스템이나 외부 API에 직접 접근하지 않아야 하며, 입력된 데이터를 순수하게 변환만 해야 합니다.
-
-- **`diagnose/` (진단 및 엔진)**
-  - 역할: 테마 데이터를 바탕으로 가시성을 계산하고(Contrast), 주입받은 외부 룰(`CandidateMappingRule[]`)에 따라 교체 후보군을 동적으로 생성합니다.
-  - 제약: 내부에 특정 색상 헥스코드(`#ff6b6b` 등)를 **하드코딩해서는 안 됩니다**. 무조건 외부에서 주입된 룰(Rules)에 기반해 연산해야 하는 **순수 함수** 계층입니다.
-  - 테스트: 가상의 극단적인 규칙(Fixture)들을 주입했을 때, 엔진이 해당 규칙에 맞게 정확히 후보군을 매핑하는지를 집중적으로 검증합니다.
-
-- **`patch/` (오케스트레이터)**
-  - 역할: 사용자가 선택한 패치 후보군들을 바탕으로 '적용할 다음 설정'과 '롤백용 스냅샷'을 계산합니다.
-  - 제약: 이 모듈 자체는 VS Code API를 호출해 설정값을 저장하지 않습니다. 오직 "어떻게 업데이트해야 하는지"에 대한 계획(Plan) 객체만 반환합니다.
-
-- **`serializer/`**
-  - 역할: PatchService가 만든 도메인 객체를 다시 VS Code가 알아들을 수 있는 JSON 형식으로 직렬화(포맷팅)합니다.
-  - 제약: 어떠한 의존성도 없는 완전한 순수 함수여야 합니다.
-
-- **`ui/` (뷰 및 포맷터)**
-  - 역할: Webview에 그릴 HTML 문자열을 생성하고, 사용자에게 띄울 Notification 메시지를 만듭니다.
-
-- **`extension.ts` (진입점)**
-  - 역할: 위의 모든 모듈들을 조립(Wiring)합니다. 
-  - 제약: 이곳에는 복잡한 비즈니스 계산식이 없어야 하며, 단순히 모듈 A의 결과를 모듈 B로 넘겨주는 파이프라인 역할만 수행해야 합니다.
+- **`adapter/vscode/` (PORT, VS Code 종속)**
+  - `io.ts` — VS Code API 읽기/쓰기: `collectThemeSnapshot`, `readCurrentSettings`, `readCurrentPatchableSettings`, `writeSettingsToVscode`.
+  - `themeColorMapper.ts` — VS Code 테마 정의 → `ThemeColorsDto` 매핑(`mapVscodeThemeToColors`) 후 코어 진단(`createThemeReport`)에 위임하는 진입 함수 `createThemeSignalReport`.
+  - `themeFileParser.ts` — 설치된 테마 파일 수집/매칭(`collectInstalledThemes`, `isMatchingThemeName`).
+  - `settingsSerializer.ts` — DTO → VS Code 설정 형태 직렬화(순수): `serializeCandidatePatch`, `createPatchRecipeFromCandidates`, `buildRollbackPlan`, `createEmptySettingsSnapshot`.
+  - `patchApply.ts` — 롤백 스냅샷 저장 + 설정 쓰기를 묶는 `applyPatchPlanWithRollback`.
+  - `ruleParser.ts` / `ruleAdapter.ts` / `ruleProvider.ts` — 후보 룰 파싱·로딩·제공.
+  - `apiTypes.ts` — VS Code API 인터페이스 정의(`VscodeReadApis`/`VscodeSettingsApis` 등).
+  - `types.ts` — `Vscode*` raw 설정/테마 타입.
+- **`diagnose/` (CORE, 순수)**
+  - `diagnosticService.ts` — `createThemeReport`(테마 분석 리포트 생성).
+  - `diagnosticEngine.ts` — `createPatchCandidates`(룰 기반 교체 후보 생성), `analyzeVisibility`.
+  - `intentSolution.ts` — `createIntentSolution`(특정 영역 클릭에 대한 동적 후보 해결).
+  - `visibilityRules.ts` — 대비/가시성 계산 규칙.
+  - 제약: 색상 헥스코드 하드코딩 금지. 외부 주입 룰(`CandidateRuleDto[]`)에만 기반.
+- **`patch/` (CORE, 순수)**
+  - `candidateSaveSession.ts` — `CandidateSaveSession`. 뷰어 오픈 시 스냅샷 캡처, accept/reject/컬러 오버라이드를 메모리에 스테이징, `computeApplyPlan`이 DTO `{ status, selectedCandidates, themeName }`만 반환. VS Code API·I/O 없음.
+  - `reportStaleness.ts` — `isReportStale`(뷰어 오픈 이후 테마 변경 감지).
+- **`ui/` (CORE, 순수)**
+  - `editorViewModel.ts`, `editorViewHtml.ts`, `afterLayer.ts`, `previewHtml.ts`, `notificationFormatter.ts`, `htmlUtils.ts`, `viewerCss.ts`, `components/`, `sample/`.
+  - `themeColorDefaults.ts` — `SIGNAL_DEFAULTS`, `normalizeReportSignals`. `ThemeColorsDto` → `ThemeColorHexMap` 정규화. 순수 DTO 기반이며 ui 전용으로 소비되어 이 계층에 위치한다.
+- **`extension.ts` (진입점)**: 커맨드 등록 + 포트/코어 파이프라인 조립만 담당. 복잡한 비즈니스 계산식은 두지 않는다.
 
 ---
 
-## 3. 데이터 흐름도 (Data Flow)
+## 3. 명명 규칙과 경계 (Naming Convention & Boundary)
 
-각 계층이 어떻게 상호작용하는지를 보여주는 시퀀스 다이어그램입니다.
+| 접두/접미사 | 의미 | 소속 |
+| --- | --- | --- |
+| `Vscode*` | VS Code 고유의 raw 형태 (테마 파일/설정 JSON/롤백 스냅샷 등) | **포트 전용** (`adapter/vscode/**`) |
+| `*Dto` | 에디터 무관 내부 도메인 객체. 경계를 넘나든다 | 코어·포트 공용 (`types/**`) |
 
-### 3.1. 로드 및 진단 흐름 (Load & Diagnose Flow)
+**경계 불변식**: `src/diagnose/**`, `src/patch/**`, `src/utils/**`는 `adapter/**`를 import하지 않으며 어떤 `Vscode*` 타입도 사용하지 않는다. 포트 ↔ 코어 통신은 `*Dto`로만 이뤄진다.
 
-사용자의 환경 설정을 읽고, 이를 파싱한 뒤, 규칙에 맞추어 안 보이는 색상을 찾아내는 과정입니다.
+---
 
-```mermaid
-sequenceDiagram
-    participant UI as UI (Command/Webview)
-    participant Adapter as Adapter (vscode)
-    participant Parser as Parser (Theme Loader)
-    participant Diagnose as Diagnose Service
-    participant Rules as Visibility Rules
-    
-    UI->>Adapter: 1. 현재 테마/설정 로드 요청
-    Adapter-->>Parser: 2. Raw VS Code Data 전달
-    Parser-->>Diagnose: 3. 파싱된 내부 공통 Theme DTO 전달
-    Diagnose->>Rules: 4. 각 시그널별 규칙(Contrast 등) 검사 요청
-    Rules-->>Diagnose: 5. 수학적 계산 및 위험 판별 결과 반환
-    Diagnose-->>UI: 6. 최종 진단 리포트 및 교체 후보군(Candidates) 반환
+## 4. 데이터 흐름 (Data Flow)
+
+세 가지 시퀀스로 정리한다. 함수명은 실제 코드 기준이다.
+
+### 4.1. LOAD (로드 및 진단)
+
+```text
+extension(handle*)
+  → io.collectThemeSnapshot                 // 포트: VS Code 테마/설정 raw 수집
+  → themeColorMapper.createThemeSignalReport // 포트 진입점
+      ├─ mapVscodeThemeToColors              //   raw 테마 → ThemeColorsDto
+      └─ diagnose.createThemeReport          //   코어 순수 분석에 위임 → ThemeReportDto
+  → diagnose.createPatchCandidates           // 코어: 룰 기반 교체 후보(CandidateDto[]) 생성
+  → ui (createEditorViewerModel / createPreviewModel → render*)  // 코어: 뷰모델·HTML 렌더
 ```
 
-### 3.2. 패치 및 롤백 흐름 (Patch & Rollback Flow)
+### 4.2. SAVE (배치 저장)
 
-사용자가 제안된 색상 후보를 수락했을 때, 이를 VS Code 환경에 저장하는 과정입니다.
-
-```mermaid
-sequenceDiagram
-    participant UI as UI (User Action)
-    participant Patch as Patch Service
-    participant Serializer as Serializer (vscode)
-    participant Adapter as Adapter (vscode)
-    
-    UI->>Patch: 1. 후보(Candidate) 확정 및 교체 요청
-    Patch->>Patch: 2. 기존 상태(Before)를 Rollback 스냅샷으로 캡처
-    Patch->>Serializer: 3. 변경할 도메인 패치 객체를 Serializer에 전달
-    Serializer-->>Patch: 4. 직렬화된 외부 포맷(VS Code Settings 객체) 반환
-    Patch->>Adapter: 5. 직렬화된 Settings를 Adapter에 전달하여 Save 지시
-    Adapter-->>UI: 6. I/O 완료 및 사용자에게 알림 콜백
+```text
+extension(saveCandidates 메시지 핸들러)
+  → patch.CandidateSaveSession.computeApplyPlan({ currentReport })
+        // 코어 순수: staleReport / noStagedCandidates / ready 중 하나.
+        // ready면 DTO { selectedCandidates, themeName } 반환 (오버라이드 적용 완료)
+  → io.readCurrentPatchableSettings           // 포트: 현재 설정 스냅샷 읽기
+  → settingsSerializer.serializeCandidatePatch(selectedCandidates, themeName, existingSettings)
+        // 포트: DTO → VS Code 패치 플랜(settingsUpdates + 롤백 스냅샷) 직렬화
+  → patchApply.applyPatchPlanWithRollback
+        ├─ saveRollback → globalState 에 VscodeRollbackSnapshot 저장
+        └─ writeSettings → io.writeSettingsToVscode  // 포트: 실제 설정 쓰기
 ```
+
+쓰기가 성공한 뒤에만 웹뷰에 `saveResult ok:true`를 보낸다(silent success 금지).
+
+### 4.3. ROLLBACK (롤백)
+
+```text
+extension(handleRollbackCandidatePatch)
+  → globalState.get<VscodeRollbackSnapshot>     // 저장 시 기록한 스냅샷 조회
+  → settingsSerializer.buildRollbackPlan(snapshot)  // 포트: 스냅샷 → 복원 플랜
+  → io.writeSettingsToVscode                    // 포트: 이전 설정값으로 복원 쓰기
+  → globalState.update(..., undefined)          // 스냅샷 소거
+```
+
+---
+
+## 5. 남아 있는 경계 항목 (Known remaining boundary items, future)
+
+현재 코어 중 `ui/`만 포트를 부분적으로 참조하는 지점이 남아 있다. 향후 정리 대상이다.
+
+- **(a) `ui/previewHtml.ts`가 `VscodePatchRecipe`를 직접 받는다.** `createPreviewModel(report, patchRecipe: VscodePatchRecipe, ...)` 및 `extractPatchSignals(patchRecipe: VscodePatchRecipe)`가 `adapter/vscode/types`의 VS Code 형태(`VscodePatchRecipe` / `VscodeSettingDictionary`)에 의존한다. ui → adapter import가 남아 있는 유일한 지점이다.
+- **(b) `CandidateDto`에 VS Code 설정 식별자가 박혀 있다.** `CandidateDto.settingId`/`settingKey`가 VS Code 설정 식별자(`TargetSettingId`)를 담고 있어, 후보 모델이 아직 완전히 에디터 무관하지 않다.
+
+이 두 항목은 별도 슬라이스로 분리할 후속 작업이며, 그 전까지 위 경계 불변식의 예외는 `ui/previewHtml.ts` 하나뿐이다.
