@@ -1,22 +1,21 @@
-import { createCandidatePatchApplyPlan } from "../adapter/vscode/settingsSerializer";
-import type { CandidatePatchApplyPlan } from "../adapter/vscode/settingsSerializer";
 import { isReportStale } from "./reportStaleness";
 import { parseHexColor } from "../utils/colorUtils";
 import type { CandidateDto } from "../types/patch.types";
-import type { VscodeSettingsSnapshot } from "../adapter/vscode/types";
 import type { ThemeReportDto } from "../types/signal.types";
 
 // ============================================================
 // CandidateSaveSession (Phase 2 — batch / deferred-save CORE model)
 //
 // A stateful, in-memory session object. When the viewer is opened it
-// captures a snapshot (report + candidates + existingSettings). The user
-// stages Accept/Reject decisions per candidate; a later explicit "Save"
-// computes ONE batch apply plan for all accepted candidates.
+// captures a snapshot (report + candidates). The user stages Accept/Reject
+// decisions per candidate; a later explicit "Save" computes ONE batch
+// DTO describing which effective candidates to apply.
 //
-// STRICTLY PURE: no VS Code API, no I/O. It only mutates its own staging
-// map and returns plain PLAN objects. The actual config update is done
-// later by extension.ts (Phase 3), NOT here.
+// STRICTLY PURE & EDITOR-AGNOSTIC: no VS Code API, no I/O, no settings
+// shape. It only mutates its own staging map and returns a plain DTO
+// (status + selected candidates + themeName). The orchestrator
+// (extension.ts) serializes that DTO into a VS Code patch plan and writes
+// it, NOT this layer.
 //
 // Staging mutates internal state (accept/reject). computeApplyPlan is PURE
 // w.r.t. that state: it never mutates staging, so it can be called
@@ -29,7 +28,6 @@ export type CandidateStageStatus = "pending" | "accepted" | "rejected";
 export interface CandidateSaveSessionInput {
   report: ThemeReportDto;
   candidates: readonly CandidateDto[];
-  existingSettings: VscodeSettingsSnapshot;
 }
 
 export interface ComputeApplyPlanInput {
@@ -39,14 +37,6 @@ export interface ComputeApplyPlanInput {
    * Omit to skip the staleness guard (e.g. unit/preview contexts).
    */
   currentReport?: ThemeReportDto;
-  /**
-   * Fresh existing settings read at save time. When provided, the batch plan
-   * is computed against this snapshot instead of the one captured by the
-   * constructor (the live settings may have drifted since the viewer opened).
-   * Omit to fall back to the constructor's existingSettings.
-   */
-  existingSettings?: VscodeSettingsSnapshot;
-  now?: Date;
 }
 
 /**
@@ -54,16 +44,17 @@ export interface ComputeApplyPlanInput {
  * - "staleReport": viewer snapshot no longer matches the live theme; refuse.
  * - "noStagedCandidates": nothing accepted (fresh / all rejected). This is a
  *   NORMAL UI state, NOT an error — empty staging never throws.
- * - "ready": at least one accepted candidate; batch plan computed with a
- *   single combined rollback snapshot.
+ * - "ready": at least one accepted candidate. Carries the EFFECTIVE selected
+ *   candidates (color overrides already applied) and the theme name. The
+ *   orchestrator serializes these into the VS Code patch plan.
  */
 export type ComputeApplyPlanResult =
   | { status: "staleReport" }
   | { status: "noStagedCandidates" }
   | {
       status: "ready";
-      patchPlan: CandidatePatchApplyPlan["patchPlan"];
-      selectedCandidates: CandidatePatchApplyPlan["selectedCandidates"];
+      selectedCandidates: CandidateDto[];
+      themeName?: string;
     };
 
 export class CandidateSaveSession {
@@ -71,7 +62,6 @@ export class CandidateSaveSession {
   // Mutable: registerCandidates may append dynamically-surfaced candidates.
   // Insertion order is preserved (existing first, then registered).
   private candidates: CandidateDto[];
-  private readonly existingSettings: VscodeSettingsSnapshot;
   private readonly candidateIds: Set<string>;
 
   // Staged decisions. Absence = "pending". Order preserved for stable plans.
@@ -87,7 +77,6 @@ export class CandidateSaveSession {
   constructor(input: CandidateSaveSessionInput) {
     this.report = input.report;
     this.candidates = [...input.candidates];
-    this.existingSettings = input.existingSettings;
     this.candidateIds = new Set(this.candidates.map((candidate) => candidate.id));
   }
 
@@ -194,25 +183,18 @@ export class CandidateSaveSession {
       return { status: "staleReport" };
     }
 
-    const acceptedIds = this.getAcceptedIds();
-    if (acceptedIds.length === 0) {
+    // EFFECTIVE accepted candidates: color overrides already applied via the
+    // single overlay, in original candidate ordering. Same source the live
+    // preview uses, so the saved patch matches the preview exactly.
+    const selectedCandidates = this.getAcceptedCandidates();
+    if (selectedCandidates.length === 0) {
       return { status: "noStagedCandidates" };
     }
 
-    const applyPlan = createCandidatePatchApplyPlan({
-      report: this.report,
-      // EFFECTIVE candidates: color overrides applied via the single overlay,
-      // so the saved patch matches the live preview exactly.
-      candidates: this.candidates.map((candidate) => this.toEffectiveCandidate(candidate)),
-      selectedCandidateIds: acceptedIds,
-      existingSettings: input.existingSettings ?? this.existingSettings,
-      now: input.now
-    });
-
     return {
       status: "ready",
-      patchPlan: applyPlan.patchPlan,
-      selectedCandidates: applyPlan.selectedCandidates
+      selectedCandidates,
+      themeName: this.report.theme.configuredName
     };
   }
 

@@ -9,8 +9,23 @@ import type {
   VscodeSettingDictionary
 } from "./types";
 import type { CandidateDto } from "../../types/patch.types";
-import type { ThemeReportDto } from "../../types/signal.types";
-import { isPlainObject, clonePlainSetting, createEmptySettingsSnapshot } from "../../utils/objectUtils";
+import { isPlainObject, clonePlainSetting } from "../../utils/objectUtils";
+
+// ============================================================
+// Settings-shape factory (VS Code-specific)
+// ============================================================
+
+/**
+ * 3가지 VS Code 설정 키에 대해 빈 SettingDictionary를 가진 초기 스냅샷을 생성한다.
+ * VS Code 설정 모양 전용 헬퍼이므로 어댑터 계층에 위치한다.
+ */
+export function createEmptySettingsSnapshot(): VscodeSettingsSnapshot {
+  return {
+    "workbench.colorCustomizations": {},
+    "editor.tokenColorCustomizations": {},
+    "editor.semanticTokenColorCustomizations": {}
+  };
+}
 
 // ============================================================
 // Settings serialization (VS Code settings-shape)
@@ -149,48 +164,22 @@ function mergePlainObjects(base: VscodeSettingDictionary, override: VscodeSettin
 }
 
 // ============================================================
-// Candidate patch apply plan
+// DTO → VS Code patch plan (outbound entry point)
 // ============================================================
 
-export interface CandidatePatchApplyPlanInput {
-  report: ThemeReportDto;
-  candidates: readonly CandidateDto[];
-  selectedCandidateIds: readonly string[];
-  existingSettings: VscodeSettingsSnapshot;
-  now?: Date;
-}
-
-export interface CandidatePatchApplyPlan {
-  candidates: readonly CandidateDto[];
-  selectedCandidates: readonly CandidateDto[];
-  patchPlan: VscodePatchPlan;
-}
-
-export function createCandidatePatchApplyPlan(input: CandidatePatchApplyPlanInput): CandidatePatchApplyPlan {
-  const candidates = input.candidates;
-
-  if (candidates.length === 0) {
-    throw new Error("No patch candidates were generated for the current theme.");
-  }
-
-  if (input.selectedCandidateIds.length === 0) {
-    throw new Error("No patch candidates were selected.");
-  }
-
-  const selectedCandidates = input.selectedCandidateIds
-    .map((id) => candidates.find((candidate) => candidate.id === id))
-    .filter((c): c is CandidateDto => c !== undefined);
-
-  if (selectedCandidates.length !== input.selectedCandidateIds.length) {
-    throw new Error("Some selected candidates were not found.");
-  }
-
-  const patchRecipe = createPatchRecipeFromCandidates(selectedCandidates, input.report.theme.configuredName);
-  const patchPlan = buildPatchPlan(input.existingSettings, patchRecipe, input.now);
-
-  return {
-    candidates,
-    selectedCandidates,
-    patchPlan
-  };
+/**
+ * 코어가 산출한 DTO(선택된 후보 + 테마명)를 VS Code 패치 플랜으로 직렬화한다.
+ * patch 코어는 더 이상 VS Code 모양을 알 필요가 없고, 오케스트레이터(extension.ts)가
+ * 이 진입점을 호출해 port→core→port 흐름을 완성한다.
+ *
+ * `createPatchRecipeFromCandidates`(레시피) → `buildPatchPlan`(플랜)을 합성한다.
+ */
+export function serializeCandidatePatch(
+  selectedCandidates: readonly CandidateDto[],
+  themeName: string | undefined,
+  existingSettings: VscodeSettingsSnapshot,
+  now?: Date
+): VscodePatchPlan {
+  const patchRecipe = createPatchRecipeFromCandidates(selectedCandidates, themeName);
+  return buildPatchPlan(existingSettings, patchRecipe, now);
 }

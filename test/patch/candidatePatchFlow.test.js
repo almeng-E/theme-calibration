@@ -5,7 +5,7 @@ const assert = require("node:assert/strict");
 const { createPatchCandidates } = require("../../out/diagnose/diagnosticEngine");
 const {
   createPatchRecipeFromCandidates,
-  createCandidatePatchApplyPlan,
+  serializeCandidatePatch,
   buildRollbackPlan,
   buildPatchPlan
 } = require("../../out/adapter/vscode/settingsSerializer");
@@ -76,25 +76,24 @@ test("candidate patch flow generates proposals, applies selected candidates, and
   assert.deepEqual(rolledBackSettings, existingSettings);
 });
 
-test("createCandidatePatchApplyPlan integrates successfully using externally provided candidates", () => {
+test("serializeCandidatePatch integrates selected candidates into a VS Code patch plan", () => {
   const report = createCandidateRichReport();
   const candidates = createPatchCandidates(report, [...LOW_CONTRAST_MAPPINGS, ...SIMILAR_SIGNAL_MAPPINGS]);
   const existingSettings = createExistingSettings();
+  const selectedCandidates = candidates.filter(
+    (candidate) => candidate.id === "lowContrast-comment-editor.tokenColorCustomizations-comments"
+  );
 
-  const applyPlan = createCandidatePatchApplyPlan({
-    report,
-    candidates,
-    selectedCandidateIds: [
-      "lowContrast-comment-editor.tokenColorCustomizations-comments"
-    ],
+  const patchPlan = serializeCandidatePatch(
+    selectedCandidates,
+    report.theme.configuredName,
     existingSettings,
-    now: new Date("2026-06-06T00:00:00.000Z")
-  });
+    new Date("2026-06-06T00:00:00.000Z")
+  );
 
-  assert.equal(applyPlan.selectedCandidates.length, 1);
-  assert.equal(applyPlan.patchPlan.recipeId, "patch-candidates-default-dark");
+  assert.equal(patchPlan.recipeId, "patch-candidates-default-dark");
   assert.equal(
-    applyPlan.patchPlan.nextSettings["editor.tokenColorCustomizations"]["[Default Dark+]"].comments,
+    patchPlan.nextSettings["editor.tokenColorCustomizations"]["[Default Dark+]"].comments,
     "#8fb8ff"
   );
 });

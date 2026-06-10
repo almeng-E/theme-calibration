@@ -13,7 +13,7 @@ import { createIntentSolution } from "./diagnose/intentSolution";
 import { createPreviewModel, renderPreviewHtml, extractPatchSignals } from "./ui/previewHtml";
 import {
   buildRollbackPlan,
-  createCandidatePatchApplyPlan,
+  serializeCandidatePatch,
   createPatchRecipeFromCandidates
 } from "./adapter/vscode/settingsSerializer";
 import {
@@ -265,28 +265,28 @@ async function handleApplyCandidatePatch(
     return;
   }
 
+  const selectedCandidates = selectedItems.map((item) => item.candidate);
   const existingSettings = readCurrentPatchableSettings(vscode, target);
-  const applyPlan = createCandidatePatchApplyPlan({
-    report,
-    candidates,
-    selectedCandidateIds: selectedItems.map((item) => item.candidate.id),
+  const patchPlan = serializeCandidatePatch(
+    selectedCandidates,
+    report.theme.configuredName,
     existingSettings
-  });
+  );
 
   await applyPatchPlanWithRollback({
-    patchPlan: applyPlan.patchPlan,
+    patchPlan,
     saveRollback: (snapshot) => context.globalState.update(CANDIDATE_ROLLBACK_STATE_KEY, snapshot),
     writeSettings: (updates) => writeSettingsToVscode(vscode, updates, target)
   });
 
   output.appendLine(JSON.stringify({
     themeName: report.theme.configuredName,
-    selectedCandidateIds: applyPlan.selectedCandidates.map((candidate) => candidate.id),
-    settingsUpdates: applyPlan.patchPlan.settingsUpdates,
+    selectedCandidateIds: selectedCandidates.map((candidate) => candidate.id),
+    settingsUpdates: patchPlan.settingsUpdates,
     rollbackStateKey: CANDIDATE_ROLLBACK_STATE_KEY
   }, null, 2));
-  console.log("[Color Calibration] Candidate patch applied", applyPlan);
-  vscode.window.showInformationMessage(`Applied ${applyPlan.selectedCandidates.length} candidate patch(es).`);
+  console.log("[Color Calibration] Candidate patch applied", { selectedCandidates, patchPlan });
+  vscode.window.showInformationMessage(`Applied ${selectedCandidates.length} candidate patch(es).`);
 }
 
 
@@ -382,8 +382,7 @@ function openEditorViewerPanel(
   // 명시적 Save 클릭 시점에만 일괄 적용됩니다 (단일 롤백 스냅샷).
   const session = new CandidateSaveSession({
     report,
-    candidates: initialCandidates,
-    existingSettings: readCurrentPatchableSettings(vscode, target)
+    candidates: initialCandidates
   });
   // 초기 추천 후보는 기본적으로 accepted 상태입니다 (인라인 JS 시딩과 동일한 가정).
   for (const candidate of initialCandidates) {
@@ -473,11 +472,7 @@ function openEditorViewerPanel(
         const currentProbe = await collectThemeSnapshot(vscode, { includeThemeDefinitions: true });
         const currentReport = createThemeSignalReport(currentProbe);
 
-        const plan = session.computeApplyPlan({
-          currentReport,
-          existingSettings: freshSettings,
-          now: new Date()
-        });
+        const plan = session.computeApplyPlan({ currentReport });
 
         if (plan.status === "staleReport") {
           await panel.webview.postMessage({ type: "saveResult", ok: false, reason: "stale" });
@@ -491,10 +486,18 @@ function openEditorViewerPanel(
           return;
         }
 
+        // port→core→port: 코어가 산출한 DTO를 어댑터가 VS Code 패치 플랜으로 직렬화.
+        const patchPlan = serializeCandidatePatch(
+          plan.selectedCandidates,
+          plan.themeName,
+          freshSettings,
+          new Date()
+        );
+
         // CRITICAL (no silent success): 실제 쓰기가 성공한 뒤에만 ok:true를 보냅니다.
         try {
           await applyPatchPlanWithRollback({
-            patchPlan: plan.patchPlan,
+            patchPlan,
             saveRollback: (snapshot) => context.globalState.update(CANDIDATE_ROLLBACK_STATE_KEY, snapshot),
             writeSettings: (updates) => writeSettingsToVscode(vscode, updates, target)
           });
