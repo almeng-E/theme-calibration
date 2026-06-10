@@ -1,4 +1,4 @@
-import type { ConfigurationSnapshot, SettingDictionary } from "../types/patch.types";
+export type SettingDictionary = Record<string, unknown>;
 
 /**
  * 값이 순수 객체(plain object)인지 검사하는 타입 가드.
@@ -36,16 +36,4 @@ export function normalizeThemePath(themePath: string): string[] {
  */
 export function getErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
-}
-
-/**
- * 3가지 VS Code 설정 키에 대해 빈 SettingDictionary를 가진 초기 스냅샷을 생성한다.
- * patchEngine과 patchGenerator에서 공통으로 사용한다.
- */
-export function createEmptySettingsSnapshot(): ConfigurationSnapshot {
-  return {
-    "workbench.colorCustomizations": {},
-    "editor.tokenColorCustomizations": {},
-    "editor.semanticTokenColorCustomizations": {}
-  };
 }

@@ -1,56 +1,56 @@
-import type { PatchCandidate } from "./patch.types";
-import type { ColorHexMap, ColorSignalRole, VisibilityRisk } from "./signal.types";
+import type { CandidateDto } from "./patch.types";
+import type { ThemeColorHexMap, ThemeColorRole, RiskDto } from "./signal.types";
 
-export type EditorViewerSampleKind = "syntax" | "diagnostic" | "diff";
-export type CalibrationIntentSource = "viewerClick";
-export type CalibrationIntentSeverity = "unspecified";
+export type ViewerSampleKind = "syntax" | "diagnostic" | "diff";
+export type IntentSource = "viewerClick";
+export type IntentSeverity = "unspecified";
 export type IntentSolutionStatus = "noMatchingRisk" | "noCandidate" | "candidates";
 
-export interface CalibrationIntent {
-  source: CalibrationIntentSource;
-  signal: ColorSignalRole;
+export interface IntentDto {
+  source: IntentSource;
+  signal: ThemeColorRole;
   sampleId: string;
   targetId: string;
-  severity: CalibrationIntentSeverity;
+  severity: IntentSeverity;
   message: string;
 }
 
-export interface IntentSolution {
-  intent: CalibrationIntent;
+export interface IntentSolutionDto {
+  intent: IntentDto;
   status: IntentSolutionStatus;
-  risks: VisibilityRisk[];
-  candidates: PatchCandidate[];
+  risks: RiskDto[];
+  candidates: CandidateDto[];
 }
 
-export interface EditorViewerRegion {
+export interface ViewerRegionDto {
   id: string;
   label: string;
-  signal: ColorSignalRole;
+  signal: ThemeColorRole;
   text: string;
   color: string;
   backgroundColor?: string;
-  intent: CalibrationIntent;
+  intent: IntentDto;
 }
 
-export interface EditorViewerLine {
+export interface ViewerLineDto {
   id: string;
-  regions: EditorViewerRegion[];
+  regions: ViewerRegionDto[];
 }
 
-export interface EditorViewerSample {
+export interface ViewerSampleDto {
   id: string;
   title: string;
-  kind: EditorViewerSampleKind;
+  kind: ViewerSampleKind;
   background: string;
   foreground: string;
-  lines: EditorViewerLine[];
+  lines: ViewerLineDto[];
 }
 
-export interface EditorViewerModel {
+export interface ViewerModelDto {
   themeName: string;
-  signals: ColorHexMap;
-  risks: VisibilityRisk[];
-  samples: EditorViewerSample[];
-  afterSamples?: EditorViewerSample[];
-  initialCandidates?: PatchCandidate[];
+  signals: ThemeColorHexMap;
+  risks: RiskDto[];
+  samples: ViewerSampleDto[];
+  afterSamples?: ViewerSampleDto[];
+  initialCandidates?: CandidateDto[];
 }

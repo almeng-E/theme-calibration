@@ -1,6 +1,6 @@
 import { TextDecoder } from "node:util";
-import { parseCandidateRuleBundle } from "../parser/candidateRuleParser";
-import type { CandidateMappingRule } from "../types/rule.types";
+import { parseCandidateRuleBundle } from "./ruleParser";
+import type { CandidateRuleDto } from "../../types/rule.types";
 
 interface VscodeCandidateRuleUriApi {
   Uri: {
@@ -26,7 +26,7 @@ export function createDefaultCandidateRuleUri(
 export async function loadCandidateRulesFromUri(
   vscodeLike: VscodeCandidateRuleFileApi,
   uri: unknown
-): Promise<CandidateMappingRule[]> {
+): Promise<CandidateRuleDto[]> {
   const bytes = await vscodeLike.workspace.fs.readFile(uri);
   const raw = JSON.parse(new TextDecoder("utf-8").decode(bytes));
   const result = parseCandidateRuleBundle(raw);

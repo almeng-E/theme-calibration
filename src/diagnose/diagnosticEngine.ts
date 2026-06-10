@@ -1,16 +1,12 @@
 import type {
-  PatchCandidate,
-  PatchRecipe,
-  SettingDictionary,
-  TargetSettingId
+  CandidateDto
 } from "../types/patch.types";
 import type {
-  ColorSignalRole,
-  ThemeAnalysisReport,
-  VisibilityRisk
+  ThemeColorRole,
+  ThemeReportDto,
+  RiskDto
 } from "../types/signal.types";
-import type { CandidateMappingRule } from "../types/rule.types";
-import { isPlainObject, createEmptySettingsSnapshot } from "../utils/objectUtils";
+import type { CandidateRuleDto } from "../types/rule.types";
 
 // ============================================================
 // 1. Constants & Mappings
@@ -21,10 +17,10 @@ import { isPlainObject, createEmptySettingsSnapshot } from "../utils/objectUtils
 // ============================================================
 
 export function createPatchCandidates(
-  report: Pick<ThemeAnalysisReport, "signals" | "risks">,
-  rules: CandidateMappingRule[] = [] // Default to empty, engine does not know the colors
-): PatchCandidate[] {
-  const candidates: PatchCandidate[] = [];
+  report: Pick<ThemeReportDto, "signals" | "risks">,
+  rules: CandidateRuleDto[] = [] // Default to empty, engine does not know the colors
+): CandidateDto[] {
+  const candidates: CandidateDto[] = [];
 
   for (const risk of report.risks) {
     const candidate = createPatchCandidate(report, risk, rules);
@@ -36,33 +32,15 @@ export function createPatchCandidates(
   return candidates;
 }
 
-export function createPatchRecipeFromCandidates(
-  candidates: readonly PatchCandidate[],
-  themeName?: string
-): PatchRecipe {
-  const settings = createEmptySettingsSnapshot();
-
-  for (const candidate of candidates) {
-    const target = getSettingTarget(settings[candidate.settingId], themeName);
-    target[candidate.settingKey] = candidate.suggestedColor;
-  }
-
-  return {
-    id: `patch-candidates-${slugify(themeName || "global")}`,
-    description: "Conservative patch recipe generated from theme signal risks.",
-    settings
-  };
-}
-
 // ============================================================
 // 3. Candidate Generation Helpers
 // ============================================================
 
 function createPatchCandidate(
-  report: Pick<ThemeAnalysisReport, "signals" | "risks">,
-  risk: VisibilityRisk,
-  rules: CandidateMappingRule[]
-): PatchCandidate | undefined {
+  report: Pick<ThemeReportDto, "signals" | "risks">,
+  risk: RiskDto,
+  rules: CandidateRuleDto[]
+): CandidateDto | undefined {
   if (risk.type === "lowContrast" && risk.signal) {
     const rule = rules.find((r) => r.type === "lowContrast" && r.signals.includes(risk.signal!));
     if (!rule) {
@@ -85,11 +63,11 @@ function createPatchCandidate(
 }
 
 function buildCandidate(
-  report: Pick<ThemeAnalysisReport, "signals" | "risks">,
-  risk: VisibilityRisk,
-  signals: ColorSignalRole[],
-  rule: CandidateMappingRule
-): PatchCandidate {
+  report: Pick<ThemeReportDto, "signals" | "risks">,
+  risk: RiskDto,
+  signals: ThemeColorRole[],
+  rule: CandidateRuleDto
+): CandidateDto {
   return {
     id: [
       risk.type,
@@ -111,15 +89,15 @@ function buildCandidate(
 
 // Removed findSimilarSignalMapping
 
-function hasSameSignals(left: readonly ColorSignalRole[], right: readonly ColorSignalRole[]): boolean {
+function hasSameSignals(left: readonly ThemeColorRole[], right: readonly ThemeColorRole[]): boolean {
   return left.length === right.length && right.every((signal) => left.includes(signal));
 }
 
 function getCurrentSignals(
-  report: Pick<ThemeAnalysisReport, "signals" | "risks">,
-  signals: ColorSignalRole[]
-): PatchCandidate["currentSignals"] {
-  const currentSignals: PatchCandidate["currentSignals"] = {};
+  report: Pick<ThemeReportDto, "signals" | "risks">,
+  signals: ThemeColorRole[]
+): CandidateDto["currentSignals"] {
+  const currentSignals: CandidateDto["currentSignals"] = {};
 
   for (const signal of signals) {
     const value = report.signals[signal]?.value;
@@ -131,35 +109,10 @@ function getCurrentSignals(
   return currentSignals;
 }
 
-function createFallbackReason(risk: VisibilityRisk, signals: ColorSignalRole[]): string {
+function createFallbackReason(risk: RiskDto, signals: ThemeColorRole[]): string {
   if (risk.type === "lowContrast") {
     return `${signals[0]} has low contrast against the editor background.`;
   }
 
   return `${signals.join(" and ")} are visually close.`;
-}
-
-// ============================================================
-// 4. Recipe Generation Helpers
-// ============================================================
-
-function getSettingTarget(setting: SettingDictionary, themeName: string | undefined): SettingDictionary {
-  if (!themeName) {
-    return setting;
-  }
-
-  const themeKey = `[${themeName}]`;
-  if (!isPlainObject(setting[themeKey])) {
-    setting[themeKey] = {};
-  }
-
-  return setting[themeKey] as SettingDictionary;
-}
-
-function slugify(value: string): string {
-  return value
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "") || "global";
 }

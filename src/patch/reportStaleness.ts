@@ -1,10 +1,10 @@
-import type { ThemeAnalysisReport } from "../types/signal.types";
+import type { ThemeReportDto } from "../types/signal.types";
 
 // ============================================================
 // Single source of truth for "is the viewer report stale?"
 //
 // When a viewer (editor preview / save session) is opened it captures
-// a snapshot of the ThemeAnalysisReport. By the time the user applies a
+// a snapshot of the ThemeReportDto. By the time the user applies a
 // change the live theme/signals may have changed underneath them. This
 // module computes a stable fingerprint of the report and compares two
 // reports for equivalence.
@@ -13,7 +13,7 @@ import type { ThemeAnalysisReport } from "../types/signal.types";
 // staleness contract lives in ONE place.
 // ============================================================
 
-export function createReportStaleFingerprint(report: ThemeAnalysisReport): string {
+export function createReportStaleFingerprint(report: ThemeReportDto): string {
   return JSON.stringify({
     theme: {
       configuredName: report.theme.configuredName,
@@ -29,8 +29,8 @@ export function createReportStaleFingerprint(report: ThemeAnalysisReport): strin
 }
 
 export function isReportStale(
-  viewerReport: ThemeAnalysisReport,
-  currentReport: ThemeAnalysisReport
+  viewerReport: ThemeReportDto,
+  currentReport: ThemeReportDto
 ): boolean {
   return createReportStaleFingerprint(viewerReport) !== createReportStaleFingerprint(currentReport);
 }

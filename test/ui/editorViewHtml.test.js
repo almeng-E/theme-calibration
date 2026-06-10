@@ -161,12 +161,28 @@ test("renderEditorViewerHtml seeds initialCandidates into the inline script", ()
   assert.match(html, /"suggestedColor":"#abcdef"/);
 });
 
-test("renderEditorViewerHtml renders an explicit Save button in the candidate panel", () => {
+test("renderEditorViewerHtml renders an explicit Save button in the header (top bar), not the candidate panel", () => {
   const html = renderEditorViewerHtml(createEditorViewerModel(createFakeReport("Sample Dark")), "testnonce");
 
+  // The Save button + status now live in the header (.t2-title area), wired with the
+  // same hooks the inline JS state machine queries.
   assert.match(html, /data-save-button/);
   assert.match(html, /id="save-button"/);
+  assert.match(html, /data-save-status/);
   assert.match(html, /Save Changes/);
+
+  // It must render inside the header/top-bar, NOT in the old candidate-panel save bar.
+  assert.doesNotMatch(html, /solution-save-bar/);
+  const headerSlice = html.slice(html.indexOf('class="top-bar"'), html.indexOf('class="main-area"'));
+  assert.match(headerSlice, /data-save-button/);
+  assert.match(headerSlice, /data-save-status/);
+});
+
+test("renderEditorViewerHtml renders Before/After overlay labels on the split layers", () => {
+  const html = renderEditorViewerHtml(createEditorViewerModel(createFakeReport("Sample Dark")), "testnonce");
+
+  assert.match(html, /class="layer-label layer-label-a">Before</);
+  assert.match(html, /class="layer-label layer-label-b">After</);
 });
 
 test("renderEditorViewerHtml Save button posts saveCandidates and enters Saving… state", () => {

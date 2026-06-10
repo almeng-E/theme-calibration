@@ -5,8 +5,8 @@ const assert = require("node:assert/strict");
 const {
   createDefaultCandidateRuleUri,
   loadCandidateRulesFromUri
-} = require("../../out/adapter/candidateRuleAdapter");
-const { createCandidateRulesProvider } = require("../../out/adapter/candidateRuleProvider");
+} = require("../../out/adapter/vscode/ruleAdapter");
+const { createCandidateRulesProvider } = require("../../out/adapter/vscode/ruleProvider");
 
 test("createDefaultCandidateRuleUri resolves the bundled default rule path", () => {
   const calls = [];

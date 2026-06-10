@@ -4,16 +4,16 @@
  */
 
 import type {
-  ColorHexMap,
-  ColorSignalMap,
-  ColorSignalRole
+  ThemeColorHexMap,
+  ThemeColorsDto,
+  ThemeColorRole
 } from "../types/signal.types";
 
 /**
  * VS Code Dark+ 기준 signal 기본값.
  * theme에서 signal이 누락됐을 때 fallback으로 사용한다.
  */
-export const SIGNAL_DEFAULTS: ColorHexMap = {
+export const SIGNAL_DEFAULTS: ThemeColorHexMap = {
   background: "#1e1e1e",
   foreground: "#d4d4d4",
   comment: "#6a9955",
@@ -26,13 +26,13 @@ export const SIGNAL_DEFAULTS: ColorHexMap = {
 };
 
 /**
- * ColorSignalMap(분석 리포트의 signal)을 ColorHexMap(순수 hex 문자열)으로 정규화한다.
+ * ThemeColorsDto(분석 리포트의 signal)을 ThemeColorHexMap(순수 hex 문자열)으로 정규화한다.
  * 누락된 signal은 SIGNAL_DEFAULTS에서 채운다.
  */
-export function normalizeReportSignals(signals: ColorSignalMap | undefined): ColorHexMap {
+export function normalizeReportSignals(signals: ThemeColorsDto | undefined): ThemeColorHexMap {
   const normalized = { ...SIGNAL_DEFAULTS };
 
-  for (const name of Object.keys(SIGNAL_DEFAULTS) as ColorSignalRole[]) {
+  for (const name of Object.keys(SIGNAL_DEFAULTS) as ThemeColorRole[]) {
     const signal = signals?.[name];
     if (signal?.value) {
       normalized[name] = signal.value;

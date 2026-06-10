@@ -1,4 +1,4 @@
-import type { IntentSolution } from "../types/editorViewer.types";
+import type { IntentSolutionDto } from "../types/editorViewer.types";
 
 export type IntentSolutionNotificationLevel = "info" | "warning";
 
@@ -7,7 +7,7 @@ export interface IntentSolutionNotification {
   message: string;
 }
 
-export function createIntentSolutionNotification(solution: IntentSolution): IntentSolutionNotification {
+export function createIntentSolutionNotification(solution: IntentSolutionDto): IntentSolutionNotification {
   if (solution.status === "candidates") {
     return {
       level: "info",

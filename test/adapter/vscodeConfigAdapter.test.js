@@ -2,7 +2,7 @@
 
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { readCurrentPatchableSettings } = require("../../out/adapter/vscodeConfigAdapter");
+const { readCurrentPatchableSettings } = require("../../out/adapter/vscode/io");
 
 test("readCurrentPatchableSettings reads the selected target value instead of effective merged settings", () => {
   const fakeVscode = {

@@ -1,12 +1,12 @@
-import { SETTING_IDS } from "../constants";
-import type { TargetSettingId } from "../types/patch.types";
-import type { CandidateMappingRule, CandidateRuleParseResult, CandidateRuleType } from "../types/rule.types";
-import type { ColorSignalRole } from "../types/signal.types";
-import { parseHexColor } from "../utils/colorUtils";
-import { isPlainObject } from "../utils/objectUtils";
+import { SETTING_IDS } from "../../constants";
+import type { TargetSettingId } from "../../types/patch.types";
+import type { CandidateRuleDto, CandidateRuleParseResult, CandidateRuleType } from "../../types/rule.types";
+import type { ThemeColorRole } from "../../types/signal.types";
+import { parseHexColor } from "../../utils/colorUtils";
+import { isPlainObject } from "../../utils/objectUtils";
 
 const VALID_RULE_TYPES = new Set<CandidateRuleType>(["lowContrast", "similarSignal"]);
-const VALID_SIGNALS = new Set<ColorSignalRole>([
+const VALID_SIGNALS = new Set<ThemeColorRole>([
   "background",
   "foreground",
   "comment",
@@ -49,7 +49,7 @@ export function parseCandidateRuleBundle(raw: unknown): CandidateRuleParseResult
 
   const rules = raw.candidateMappings
     .map((entry, index) => parseCandidateMapping(entry, index, errors))
-    .filter((rule): rule is CandidateMappingRule => rule !== undefined);
+    .filter((rule): rule is CandidateRuleDto => rule !== undefined);
 
   if (errors.length > 0) {
     return {
@@ -73,7 +73,7 @@ function parseCandidateMapping(
   raw: unknown,
   index: number,
   errors: string[]
-): CandidateMappingRule | undefined {
+): CandidateRuleDto | undefined {
   const path = `candidateMappings[${index}]`;
 
   if (!isPlainObject(raw)) {
@@ -111,21 +111,21 @@ function parseRuleType(raw: unknown, path: string, errors: string[]): CandidateR
   return raw as CandidateRuleType;
 }
 
-function parseSignals(raw: unknown, path: string, errors: string[]): ColorSignalRole[] | undefined {
+function parseSignals(raw: unknown, path: string, errors: string[]): ThemeColorRole[] | undefined {
   if (!Array.isArray(raw) || raw.length === 0) {
     errors.push(`${path} must be a non-empty array.`);
     return undefined;
   }
 
-  const signals: ColorSignalRole[] = [];
+  const signals: ThemeColorRole[] = [];
 
   raw.forEach((entry, index) => {
-    if (typeof entry !== "string" || !VALID_SIGNALS.has(entry as ColorSignalRole)) {
+    if (typeof entry !== "string" || !VALID_SIGNALS.has(entry as ThemeColorRole)) {
       errors.push(`${path}[${index}] must be a known signal role.`);
       return;
     }
 
-    signals.push(entry as ColorSignalRole);
+    signals.push(entry as ThemeColorRole);
   });
 
   return signals.length === raw.length ? signals : undefined;

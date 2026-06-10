@@ -1,8 +1,8 @@
-import type { ColorHexMap } from "../../types/signal.types";
-import type { EditorViewerSample } from "../../types/editorViewer.types";
+import type { ThemeColorHexMap } from "../../types/signal.types";
+import type { ViewerSampleDto } from "../../types/editorViewer.types";
 import { createSample, createLine, createRegion } from "./sampleUtils";
 
-export function createTypeScriptSample(signals: ColorHexMap): EditorViewerSample {
+export function createTypeScriptSample(signals: ThemeColorHexMap): ViewerSampleDto {
   return createSample("ts-sample", "TypeScript (Syntax)", "syntax", signals, [
     createLine("ts-line-1", [
       createRegion("ts-sample", "ts-keyword-function", "Keyword", "function", "keyword", signals.keyword),

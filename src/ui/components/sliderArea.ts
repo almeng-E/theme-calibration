@@ -1,7 +1,7 @@
-import type { EditorViewerSample, EditorViewerLine, EditorViewerRegion } from "../../types/editorViewer.types";
+import type { ViewerSampleDto, ViewerLineDto, ViewerRegionDto } from "../../types/editorViewer.types";
 import { escapeHtml, cssColor } from "../htmlUtils";
 
-export function renderSliderArea(samplesA: EditorViewerSample[], samplesB: EditorViewerSample[]): string {
+export function renderSliderArea(samplesA: ViewerSampleDto[], samplesB: ViewerSampleDto[]): string {
   const contentA = renderSamplesHtml(samplesA);
   const contentB = renderSamplesHtml(samplesB);
 
@@ -9,9 +9,11 @@ export function renderSliderArea(samplesA: EditorViewerSample[], samplesB: Edito
     <section class="m1-editor-container" id="slider-container">
       <div class="slider-wrapper">
         <div class="slider-layer slider-layer-a" id="layer-a">
+          <span class="layer-label layer-label-a">Before</span>
           <div class="editor-content">${contentA}</div>
         </div>
         <div class="slider-layer slider-layer-b" id="layer-b">
+          <span class="layer-label layer-label-b">After</span>
           <div class="editor-content">${contentB}</div>
         </div>
         <div class="slider-handle" id="slider-handle"></div>
@@ -20,11 +22,11 @@ export function renderSliderArea(samplesA: EditorViewerSample[], samplesB: Edito
   `;
 }
 
-export function renderSamplesHtml(samples: EditorViewerSample[]): string {
+export function renderSamplesHtml(samples: ViewerSampleDto[]): string {
   return samples.map((s, i) => renderSample(s, i === 0)).join("");
 }
 
-function renderSample(sample: EditorViewerSample, isFirst: boolean): string {
+function renderSample(sample: ViewerSampleDto, isFirst: boolean): string {
   // Hide all samples except the first one initially
   const displayStyle = isFirst ? "" : "display: none;";
   return `<article class="sample" data-sample-id="${escapeHtml(sample.id)}" style="${displayStyle}">
@@ -32,11 +34,11 @@ function renderSample(sample: EditorViewerSample, isFirst: boolean): string {
   </article>`;
 }
 
-function renderLine(line: EditorViewerLine): string {
+function renderLine(line: ViewerLineDto): string {
   return `<span class="line">${line.regions.map(renderRegion).join("")}</span>`;
 }
 
-function renderRegion(region: EditorViewerRegion): string {
+function renderRegion(region: ViewerRegionDto): string {
   const backgroundStyle = region.backgroundColor ? ` background:${cssColor(region.backgroundColor)};` : "";
   const intent = escapeHtml(JSON.stringify(region.intent));
 

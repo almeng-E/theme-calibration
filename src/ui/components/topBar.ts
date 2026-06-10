@@ -1,7 +1,7 @@
-import type { EditorViewerSample } from "../../types/editorViewer.types";
+import type { ViewerSampleDto } from "../../types/editorViewer.types";
 import { escapeHtml } from "../htmlUtils";
 
-export function renderTopBar(samples: EditorViewerSample[]): string {
+export function renderTopBar(samples: ViewerSampleDto[]): string {
   const tabs = samples
     .map(
       (sample, index) =>
@@ -17,7 +17,11 @@ export function renderTopBar(samples: EditorViewerSample[]): string {
         ${tabs}
       </nav>
       <div class="t2-title">
-        Improvement Candidates
+        <span class="t2-title-text">Improvement Candidates</span>
+        <div class="t2-actions">
+          <span class="save-status" data-save-status></span>
+          <button type="button" id="save-button" class="save-button" data-save-button>Save Changes</button>
+        </div>
       </div>
     </header>
   `;

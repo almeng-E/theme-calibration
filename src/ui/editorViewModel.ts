@@ -1,17 +1,17 @@
 import type {
-  ColorHexMap,
-  ColorSignalRole,
-  ThemeAnalysisReport
+  ThemeColorHexMap,
+  ThemeColorRole,
+  ThemeReportDto
 } from "../types/signal.types";
 import type {
-  CalibrationIntent,
-  EditorViewerLine,
-  EditorViewerModel,
-  EditorViewerRegion,
-  EditorViewerSample,
-  EditorViewerSampleKind
+  IntentDto,
+  ViewerLineDto,
+  ViewerModelDto,
+  ViewerRegionDto,
+  ViewerSampleDto,
+  ViewerSampleKind
 } from "../types/editorViewer.types";
-import { SIGNAL_DEFAULTS, normalizeReportSignals } from "../adapter/vscodeDefaults";
+import { SIGNAL_DEFAULTS, normalizeReportSignals } from "./themeColorDefaults";
 import {
   createPythonSample,
   createTypeScriptSample,
@@ -22,13 +22,13 @@ import {
 
 
 
-import type { PatchCandidate } from "../types/patch.types";
+import type { CandidateDto } from "../types/patch.types";
 
 export function createEditorViewerModel(
-  report: Partial<ThemeAnalysisReport> | undefined,
-  afterSignalsMap?: ColorHexMap,
-  initialCandidates?: PatchCandidate[]
-): EditorViewerModel {
+  report: Partial<ThemeReportDto> | undefined,
+  afterSignalsMap?: ThemeColorHexMap,
+  initialCandidates?: CandidateDto[]
+): ViewerModelDto {
   const signals = normalizeReportSignals(report?.signals);
   const afterSignals = afterSignalsMap || signals;
 
@@ -55,9 +55,9 @@ export function createEditorViewerModel(
 }
 
 export function findEditorViewerRegion(
-  model: EditorViewerModel,
+  model: ViewerModelDto,
   regionId: string
-): EditorViewerRegion | undefined {
+): ViewerRegionDto | undefined {
   for (const sample of model.samples) {
     for (const line of sample.lines) {
       const region = line.regions.find((item) => item.id === regionId);

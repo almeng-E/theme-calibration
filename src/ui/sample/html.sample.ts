@@ -1,8 +1,8 @@
-import type { ColorHexMap } from "../../types/signal.types";
-import type { EditorViewerSample } from "../../types/editorViewer.types";
+import type { ThemeColorHexMap } from "../../types/signal.types";
+import type { ViewerSampleDto } from "../../types/editorViewer.types";
 import { createSample, createLine, createRegion } from "./sampleUtils";
 
-export function createHtmlSample(signals: ColorHexMap): EditorViewerSample {
+export function createHtmlSample(signals: ThemeColorHexMap): ViewerSampleDto {
   return createSample("html-sample", "HTML (Syntax)", "syntax", signals, [
     createLine("html-line-1", [
       createRegion("html-sample", "html-tag-open", "Foreground", "<", "foreground", signals.foreground),
