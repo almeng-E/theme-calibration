@@ -1,7 +1,6 @@
 import * as vscode from "vscode";
 import * as crypto from "crypto";
 import { normalizeReportSignals } from "./ui/themeColorDefaults";
-import type { ThemeColorHexMap } from "./types/signal.types";
 import { CANDIDATE_ROLLBACK_STATE_KEY, COMMAND_IDS, OUTPUT_CHANNEL_NAME } from "./constants";
 import { createIntentSolutionNotification } from "./ui/notificationFormatter";
 import { createEditorViewerModel } from "./ui/editorViewModel";
@@ -10,7 +9,8 @@ import { renderAfterLayerHtml } from "./ui/afterLayer";
 import { CandidateSaveSession } from "./patch/candidateSaveSession";
 import { createPatchCandidates } from "./diagnose/diagnosticEngine";
 import { createIntentSolution } from "./diagnose/intentSolution";
-import { createPreviewModel, renderPreviewHtml, extractPatchSignals } from "./ui/previewHtml";
+import { createPreviewModel, renderPreviewHtml } from "./ui/previewHtml";
+import { overlayCandidateColors } from "./ui/themeColorOverlay";
 import {
   buildRollbackPlan,
   serializeCandidatePatch,
@@ -198,13 +198,8 @@ async function handleOpenEditorViewer(
 
   // Phase 4: Initial Full Diagnosis for B layer
   const initialCandidates = createPatchCandidates(report, candidateRules);
-  const patchRecipe = createPatchRecipeFromCandidates(initialCandidates, report.theme.configuredName);
-  
   const baseSignals = normalizeReportSignals(report.signals);
-  const afterSignalsMap = {
-    ...baseSignals,
-    ...extractPatchSignals(patchRecipe)
-  } as ThemeColorHexMap;
+  const afterSignalsMap = overlayCandidateColors(baseSignals, initialCandidates);
 
   const viewerModel = createEditorViewerModel(report, afterSignalsMap, initialCandidates);
   const nonce = crypto.randomBytes(16).toString("hex");

@@ -1,6 +1,7 @@
-import type { ThemeColorHexMap, ThemeReportDto } from "../types/signal.types";
+import type { ThemeReportDto } from "../types/signal.types";
 import type { CandidateDto } from "../types/patch.types";
 import { normalizeReportSignals } from "./themeColorDefaults";
+import { overlayCandidateColors } from "./themeColorOverlay";
 import { createEditorViewerModel } from "./editorViewModel";
 import { renderSamplesHtml } from "./components/sliderArea";
 
@@ -18,13 +19,10 @@ export function renderAfterLayerHtml(
   report: ThemeReportDto,
   acceptedCandidates: readonly CandidateDto[]
 ): string {
-  const afterSignals: ThemeColorHexMap = { ...normalizeReportSignals(report.signals) };
-
-  for (const candidate of acceptedCandidates) {
-    for (const signal of candidate.signals) {
-      afterSignals[signal] = candidate.suggestedColor;
-    }
-  }
+  const afterSignals = overlayCandidateColors(
+    normalizeReportSignals(report.signals),
+    acceptedCandidates
+  );
 
   const model = createEditorViewerModel(report, afterSignals);
   return renderSamplesHtml(model.afterSamples || []);
