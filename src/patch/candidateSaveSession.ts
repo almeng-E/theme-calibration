@@ -1,8 +1,9 @@
-import { createCandidatePatchApplyPlan } from "./patchService";
-import type { CandidatePatchApplyPlan } from "./patchService";
+import { createCandidatePatchApplyPlan } from "../adapter/vscode/settingsSerializer";
+import type { CandidatePatchApplyPlan } from "../adapter/vscode/settingsSerializer";
 import { isReportStale } from "./reportStaleness";
 import { parseHexColor } from "../utils/colorUtils";
-import type { ConfigurationSnapshot, CandidateDto } from "../types/patch.types";
+import type { CandidateDto } from "../types/patch.types";
+import type { VscodeSettingsSnapshot } from "../adapter/vscode/types";
 import type { ThemeReportDto } from "../types/signal.types";
 
 // ============================================================
@@ -28,7 +29,7 @@ export type CandidateStageStatus = "pending" | "accepted" | "rejected";
 export interface CandidateSaveSessionInput {
   report: ThemeReportDto;
   candidates: readonly CandidateDto[];
-  existingSettings: ConfigurationSnapshot;
+  existingSettings: VscodeSettingsSnapshot;
 }
 
 export interface ComputeApplyPlanInput {
@@ -44,7 +45,7 @@ export interface ComputeApplyPlanInput {
    * constructor (the live settings may have drifted since the viewer opened).
    * Omit to fall back to the constructor's existingSettings.
    */
-  existingSettings?: ConfigurationSnapshot;
+  existingSettings?: VscodeSettingsSnapshot;
   now?: Date;
 }
 
@@ -70,7 +71,7 @@ export class CandidateSaveSession {
   // Mutable: registerCandidates may append dynamically-surfaced candidates.
   // Insertion order is preserved (existing first, then registered).
   private candidates: CandidateDto[];
-  private readonly existingSettings: ConfigurationSnapshot;
+  private readonly existingSettings: VscodeSettingsSnapshot;
   private readonly candidateIds: Set<string>;
 
   // Staged decisions. Absence = "pending". Order preserved for stable plans.

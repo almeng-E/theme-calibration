@@ -1,8 +1,5 @@
 import type {
-  CandidateDto,
-  PatchRecipeDto,
-  SettingDictionary,
-  TargetSettingId
+  CandidateDto
 } from "../types/patch.types";
 import type {
   ThemeColorRole,
@@ -10,7 +7,6 @@ import type {
   RiskDto
 } from "../types/signal.types";
 import type { CandidateRuleDto } from "../types/rule.types";
-import { isPlainObject, createEmptySettingsSnapshot } from "../utils/objectUtils";
 
 // ============================================================
 // 1. Constants & Mappings
@@ -34,24 +30,6 @@ export function createPatchCandidates(
   }
 
   return candidates;
-}
-
-export function createPatchRecipeFromCandidates(
-  candidates: readonly CandidateDto[],
-  themeName?: string
-): PatchRecipeDto {
-  const settings = createEmptySettingsSnapshot();
-
-  for (const candidate of candidates) {
-    const target = getSettingTarget(settings[candidate.settingId], themeName);
-    target[candidate.settingKey] = candidate.suggestedColor;
-  }
-
-  return {
-    id: `patch-candidates-${slugify(themeName || "global")}`,
-    description: "Conservative patch recipe generated from theme signal risks.",
-    settings
-  };
 }
 
 // ============================================================
@@ -137,29 +115,4 @@ function createFallbackReason(risk: RiskDto, signals: ThemeColorRole[]): string 
   }
 
   return `${signals.join(" and ")} are visually close.`;
-}
-
-// ============================================================
-// 4. Recipe Generation Helpers
-// ============================================================
-
-function getSettingTarget(setting: SettingDictionary, themeName: string | undefined): SettingDictionary {
-  if (!themeName) {
-    return setting;
-  }
-
-  const themeKey = `[${themeName}]`;
-  if (!isPlainObject(setting[themeKey])) {
-    setting[themeKey] = {};
-  }
-
-  return setting[themeKey] as SettingDictionary;
-}
-
-function slugify(value: string): string {
-  return value
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "") || "global";
 }

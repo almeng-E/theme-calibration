@@ -2,8 +2,13 @@
 
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { createPatchCandidates, createPatchRecipeFromCandidates } = require("../../out/diagnose/diagnosticEngine");
-const { createCandidatePatchApplyPlan, buildRollbackPlan, buildPatchPlan } = require("../../out/patch/patchService");
+const { createPatchCandidates } = require("../../out/diagnose/diagnosticEngine");
+const {
+  createPatchRecipeFromCandidates,
+  createCandidatePatchApplyPlan,
+  buildRollbackPlan,
+  buildPatchPlan
+} = require("../../out/adapter/vscode/settingsSerializer");
 const { LOW_CONTRAST_MAPPINGS, SIMILAR_SIGNAL_MAPPINGS } = require("../fixtures/diagnostic.fixtures.js");
 
 test("candidate patch flow generates proposals, applies selected candidates, and rolls back", () => {

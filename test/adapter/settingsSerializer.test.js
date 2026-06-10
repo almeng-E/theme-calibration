@@ -5,8 +5,9 @@ const assert = require("node:assert/strict");
 const {
   buildPatchPlan,
   buildRollbackPlan,
-  wrapRecipeForTheme
-} = require("../../out/patch/patchService");
+  wrapRecipeForTheme,
+  createPatchRecipeFromCandidates
+} = require("../../out/adapter/vscode/settingsSerializer");
 const { SAMPLE_PATCH_RECIPE } = require("../fixtures/patch.fixtures.js");
 
 test("buildPatchPlan preserves existing overrides while applying sample patch values", () => {
@@ -108,4 +109,51 @@ test("buildPatchPlan preserves existing values inside a theme-specific customiza
     plan.nextSettings["workbench.colorCustomizations"]["[Default Dark+]"]["editorError.foreground"],
     SAMPLE_PATCH_RECIPE.settings["workbench.colorCustomizations"]["editorError.foreground"]
   );
+});
+
+test("createPatchRecipeFromCandidates groups candidates into theme-scoped settings", () => {
+  const candidates = [
+    {
+      id: "lowContrast-comment-editor.tokenColorCustomizations-comments",
+      riskType: "lowContrast",
+      signals: ["comment"],
+      settingId: "editor.tokenColorCustomizations",
+      settingKey: "comments",
+      currentSignals: {
+        comment: "#222222"
+      },
+      suggestedColor: "#8fb8ff",
+      reason: "comment has low contrast against the editor background.",
+      scope: "theme",
+      confidence: 0.8
+    },
+    {
+      id: "similarSignal-error-diffDeleted-workbench.colorCustomizations-editorGutter.deletedBackground",
+      riskType: "similarSignal",
+      signals: ["error", "diffDeleted"],
+      settingId: "workbench.colorCustomizations",
+      settingKey: "editorGutter.deletedBackground",
+      currentSignals: {
+        error: "#f44747",
+        diffDeleted: "#f44747"
+      },
+      suggestedColor: "#ff6b6b",
+      reason: "error and diffDeleted are visually close.",
+      scope: "theme",
+      confidence: 0.7
+    }
+  ];
+
+  const recipe = createPatchRecipeFromCandidates(candidates, "Sample Dark");
+
+  assert.equal(recipe.id, "patch-candidates-sample-dark");
+  assert.equal(
+    recipe.settings["editor.tokenColorCustomizations"]["[Sample Dark]"].comments,
+    "#8fb8ff"
+  );
+  assert.equal(
+    recipe.settings["workbench.colorCustomizations"]["[Sample Dark]"]["editorGutter.deletedBackground"],
+    "#ff6b6b"
+  );
+  assert.deepEqual(recipe.settings["editor.semanticTokenColorCustomizations"], {});
 });

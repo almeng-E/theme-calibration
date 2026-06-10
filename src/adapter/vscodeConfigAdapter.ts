@@ -1,7 +1,11 @@
 import { TextDecoder } from "node:util";
 import { COLOR_CUSTOMIZATION_SETTINGS, SETTINGS_ORDER } from "../constants";
-import type { VscodeThemeEnvironment } from "./vscode/types";
-import type { ConfigurationSnapshot, ConfigurationUpdate, SettingDictionary } from "../types/patch.types";
+import type {
+  VscodeThemeEnvironment,
+  VscodeSettingsSnapshot,
+  VscodeSettingUpdate,
+  VscodeSettingDictionary
+} from "./vscode/types";
 import type {
   ThemeCollectionOptions,
   ThemeFileReader,
@@ -97,8 +101,8 @@ function safeCall(fn: () => unknown): unknown {
   }
 }
 
-export function readCurrentPatchableSettings(vscode: VscodeSettingsApis, target: unknown): ConfigurationSnapshot {
-  const settings: ConfigurationSnapshot = {
+export function readCurrentPatchableSettings(vscode: VscodeSettingsApis, target: unknown): VscodeSettingsSnapshot {
+  const settings: VscodeSettingsSnapshot = {
     "workbench.colorCustomizations": {},
     "editor.tokenColorCustomizations": {},
     "editor.semanticTokenColorCustomizations": {}
@@ -117,7 +121,7 @@ export function readCurrentPatchableSettings(vscode: VscodeSettingsApis, target:
 
 export async function writeSettingsToVscode(
   vscode: VscodeSettingsApis,
-  settingsUpdates: ConfigurationUpdate[],
+  settingsUpdates: VscodeSettingUpdate[],
   target: unknown
 ): Promise<void> {
   for (const update of settingsUpdates) {
@@ -133,7 +137,7 @@ function getInspectedValueForTarget(
   vscode: VscodeSettingsApis,
   inspected: { globalValue?: unknown; workspaceValue?: unknown; workspaceFolderValue?: unknown },
   target: unknown
-): SettingDictionary {
+): VscodeSettingDictionary {
   if (vscode.ConfigurationTarget && target === vscode.ConfigurationTarget.Global) {
     return clonePlainSetting(inspected.globalValue);
   }

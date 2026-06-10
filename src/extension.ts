@@ -8,13 +8,14 @@ import { createEditorViewerModel } from "./ui/editorViewModel";
 import { renderEditorViewerHtml } from "./ui/editorViewHtml";
 import { renderAfterLayerHtml } from "./ui/afterLayer";
 import { CandidateSaveSession } from "./patch/candidateSaveSession";
-import { createPatchCandidates, createPatchRecipeFromCandidates } from "./diagnose/diagnosticEngine";
+import { createPatchCandidates } from "./diagnose/diagnosticEngine";
 import { createIntentSolution } from "./diagnose/intentSolution";
 import { createPreviewModel, renderPreviewHtml, extractPatchSignals } from "./ui/previewHtml";
 import {
   buildRollbackPlan,
-  createCandidatePatchApplyPlan
-} from "./patch/patchService";
+  createCandidatePatchApplyPlan,
+  createPatchRecipeFromCandidates
+} from "./adapter/vscode/settingsSerializer";
 import {
   collectThemeSnapshot,
   readCurrentPatchableSettings,
@@ -27,8 +28,9 @@ import {
 } from "./adapter/candidateRuleAdapter";
 import { createThemeSignalReport } from "./adapter/vscode/themeColorMapper";
 import { getErrorMessage } from "./utils/objectUtils";
-import { applyPatchPlanWithRollback } from "./patch/patchApplicationService";
-import type { CandidateDto, RollbackSnapshotDto } from "./types/patch.types";
+import { applyPatchPlanWithRollback } from "./adapter/vscode/patchApply";
+import type { CandidateDto } from "./types/patch.types";
+import type { VscodeRollbackSnapshot } from "./adapter/vscode/types";
 import type { CandidateRuleDto } from "./types/rule.types";
 import type { IntentSolutionDto } from "./types/editorViewer.types";
 
@@ -290,7 +292,7 @@ async function handleApplyCandidatePatch(
 
 
 async function handleRollbackCandidatePatch(output: vscode.OutputChannel, context: vscode.ExtensionContext): Promise<void> {
-  const rollbackSnapshot = context.globalState.get<RollbackSnapshotDto>(CANDIDATE_ROLLBACK_STATE_KEY);
+  const rollbackSnapshot = context.globalState.get<VscodeRollbackSnapshot>(CANDIDATE_ROLLBACK_STATE_KEY);
 
   if (!rollbackSnapshot) {
     output.appendLine("No candidate rollback snapshot found.");

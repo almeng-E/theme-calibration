@@ -1,3 +1,44 @@
+import type { TargetSettingId } from "../../types/patch.types";
+
+// ============================================================
+// VS Code settings-shape / plan types (port type home)
+// ============================================================
+
+export type VscodeSettingDictionary = Record<string, unknown>;
+
+export interface VscodePatchRecipe {
+  id: string;
+  description: string;
+  settings: Record<TargetSettingId, VscodeSettingDictionary>;
+}
+
+export type VscodeSettingsSnapshot = Record<TargetSettingId, VscodeSettingDictionary>;
+
+export interface VscodeSettingUpdate {
+  section: string;
+  key: string;
+  value: VscodeSettingDictionary;
+}
+
+export interface VscodeRollbackSnapshot {
+  createdAt: string;
+  recipeId: string;
+  settings: VscodeSettingsSnapshot;
+}
+
+export interface VscodePatchPlan {
+  recipeId: string;
+  nextSettings: VscodeSettingsSnapshot;
+  rollbackSnapshot: VscodeRollbackSnapshot;
+  settingsUpdates: VscodeSettingUpdate[];
+}
+
+export interface VscodeRollbackPlan {
+  recipeId: string;
+  createdAt: string;
+  settingsUpdates: VscodeSettingUpdate[];
+}
+
 // ============================================================
 // VS Code / Editor-shaped theme types (port type home)
 // ============================================================

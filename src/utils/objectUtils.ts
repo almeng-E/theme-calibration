@@ -1,4 +1,4 @@
-import type { ConfigurationSnapshot, SettingDictionary } from "../types/patch.types";
+import type { VscodeSettingsSnapshot, VscodeSettingDictionary } from "../adapter/vscode/types";
 
 /**
  * 값이 순수 객체(plain object)인지 검사하는 타입 가드.
@@ -12,12 +12,12 @@ export function isPlainObject(value: unknown): value is Record<string, unknown> 
  * 임의의 값을 깊은 복사(deep clone)하여 SettingDictionary로 반환한다.
  * plain object가 아닌 값이 들어오면 빈 객체 `{}`를 반환한다.
  */
-export function clonePlainSetting(value: unknown): SettingDictionary {
+export function clonePlainSetting(value: unknown): VscodeSettingDictionary {
   if (!isPlainObject(value)) {
     return {};
   }
 
-  return JSON.parse(JSON.stringify(value)) as SettingDictionary;
+  return JSON.parse(JSON.stringify(value)) as VscodeSettingDictionary;
 }
 
 /**
@@ -42,7 +42,7 @@ export function getErrorMessage(error: unknown): string {
  * 3가지 VS Code 설정 키에 대해 빈 SettingDictionary를 가진 초기 스냅샷을 생성한다.
  * patchEngine과 patchGenerator에서 공통으로 사용한다.
  */
-export function createEmptySettingsSnapshot(): ConfigurationSnapshot {
+export function createEmptySettingsSnapshot(): VscodeSettingsSnapshot {
   return {
     "workbench.colorCustomizations": {},
     "editor.tokenColorCustomizations": {},

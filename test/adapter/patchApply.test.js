@@ -2,7 +2,7 @@
 
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { applyPatchPlanWithRollback } = require("../../out/patch/patchApplicationService");
+const { applyPatchPlanWithRollback } = require("../../out/adapter/vscode/patchApply");
 
 test("applyPatchPlanWithRollback saves rollback before writing settings", async () => {
   const calls = [];

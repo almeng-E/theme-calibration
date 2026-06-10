@@ -2,11 +2,11 @@ import type {
   PreviewModelDto,
   PreviewPaneDto
 } from "../types/preview.types";
+import type { CandidateDto } from "../types/patch.types";
 import type {
-  CandidateDto,
-  PatchRecipeDto,
-  SettingDictionary
-} from "../types/patch.types";
+  VscodePatchRecipe,
+  VscodeSettingDictionary
+} from "../adapter/vscode/types";
 import type {
   ThemeColorHexMap,
   RiskDto,
@@ -33,7 +33,7 @@ export interface PreviewModelOptions {
 
 export function createPreviewModel(
   report: Partial<ThemeReportDto> | undefined,
-  patchRecipe: PatchRecipeDto,
+  patchRecipe: VscodePatchRecipe,
   options: PreviewModelOptions = {}
 ): PreviewModelDto {
   const beforeSignals = normalizeReportSignals(report?.signals);
@@ -60,7 +60,7 @@ export function createPreviewModel(
 
 
 
-export function extractPatchSignals(patchRecipe: PatchRecipeDto): Partial<ThemeColorHexMap> {
+export function extractPatchSignals(patchRecipe: VscodePatchRecipe): Partial<ThemeColorHexMap> {
   const workbenchCustomizations = findScopedSettings(patchRecipe.settings["workbench.colorCustomizations"]);
   const tokenCustomizations = findScopedSettings(patchRecipe.settings["editor.tokenColorCustomizations"]);
 
@@ -75,7 +75,7 @@ export function extractPatchSignals(patchRecipe: PatchRecipeDto): Partial<ThemeC
   });
 }
 
-function findScopedSettings(setting: SettingDictionary | undefined): Record<string, unknown> {
+function findScopedSettings(setting: VscodeSettingDictionary | undefined): Record<string, unknown> {
   if (!isPlainObject(setting)) {
     return {};
   }
