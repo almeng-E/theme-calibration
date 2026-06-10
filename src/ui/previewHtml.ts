@@ -13,7 +13,7 @@ import type {
   ThemeReportDto
 } from "../types/signal.types";
 import { isPlainObject } from "../utils/objectUtils";
-import { normalizeReportSignals } from "../adapter/vscodeDefaults";
+import { normalizeReportSignals } from "../adapter/vscode/defaults";
 import { escapeHtml, cssColor, withAlphaFallback } from "../ui/htmlUtils";
 
 // ============================================================

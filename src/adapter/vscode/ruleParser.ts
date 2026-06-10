@@ -1,9 +1,9 @@
-import { SETTING_IDS } from "../constants";
-import type { TargetSettingId } from "../types/patch.types";
-import type { CandidateRuleDto, CandidateRuleParseResult, CandidateRuleType } from "../types/rule.types";
-import type { ThemeColorRole } from "../types/signal.types";
-import { parseHexColor } from "../utils/colorUtils";
-import { isPlainObject } from "../utils/objectUtils";
+import { SETTING_IDS } from "../../constants";
+import type { TargetSettingId } from "../../types/patch.types";
+import type { CandidateRuleDto, CandidateRuleParseResult, CandidateRuleType } from "../../types/rule.types";
+import type { ThemeColorRole } from "../../types/signal.types";
+import { parseHexColor } from "../../utils/colorUtils";
+import { isPlainObject } from "../../utils/objectUtils";
 
 const VALID_RULE_TYPES = new Set<CandidateRuleType>(["lowContrast", "similarSignal"]);
 const VALID_SIGNALS = new Set<ThemeColorRole>([

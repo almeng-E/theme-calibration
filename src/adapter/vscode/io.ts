@@ -1,20 +1,20 @@
 import { TextDecoder } from "node:util";
-import { COLOR_CUSTOMIZATION_SETTINGS, SETTINGS_ORDER } from "../constants";
+import { COLOR_CUSTOMIZATION_SETTINGS, SETTINGS_ORDER } from "../../constants";
 import type {
   VscodeThemeEnvironment,
   VscodeSettingsSnapshot,
   VscodeSettingUpdate,
   VscodeSettingDictionary
-} from "./vscode/types";
+} from "./types";
 import type {
   ThemeCollectionOptions,
   ThemeFileReader,
   VscodeConfigAccessor,
   VscodeReadApis,
   VscodeSettingsApis
-} from "./vscode.types";
-import { collectInstalledThemes, isMatchingThemeName } from "../parser/themeDefinitionLoader";
-import { normalizeThemePath, clonePlainSetting } from "../utils/objectUtils";
+} from "./apiTypes";
+import { collectInstalledThemes, isMatchingThemeName } from "./themeFileParser";
+import { normalizeThemePath, clonePlainSetting } from "../../utils/objectUtils";
 
 export async function collectThemeSnapshot(
   vscode: VscodeReadApis,

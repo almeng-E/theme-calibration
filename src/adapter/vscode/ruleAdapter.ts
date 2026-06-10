@@ -1,6 +1,6 @@
 import { TextDecoder } from "node:util";
-import { parseCandidateRuleBundle } from "../parser/candidateRuleParser";
-import type { CandidateRuleDto } from "../types/rule.types";
+import { parseCandidateRuleBundle } from "./ruleParser";
+import type { CandidateRuleDto } from "../../types/rule.types";
 
 interface VscodeCandidateRuleUriApi {
   Uri: {

@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 import * as crypto from "crypto";
-import { normalizeReportSignals } from "./adapter/vscodeDefaults";
+import { normalizeReportSignals } from "./adapter/vscode/defaults";
 import type { ThemeColorHexMap } from "./types/signal.types";
 import { CANDIDATE_ROLLBACK_STATE_KEY, COMMAND_IDS, OUTPUT_CHANNEL_NAME } from "./constants";
 import { createIntentSolutionNotification } from "./ui/notificationFormatter";
@@ -20,12 +20,12 @@ import {
   collectThemeSnapshot,
   readCurrentPatchableSettings,
   writeSettingsToVscode
-} from "./adapter/vscodeConfigAdapter";
-import { createCandidateRulesProvider } from "./adapter/candidateRuleProvider";
+} from "./adapter/vscode/io";
+import { createCandidateRulesProvider } from "./adapter/vscode/ruleProvider";
 import {
   createDefaultCandidateRuleUri,
   loadCandidateRulesFromUri
-} from "./adapter/candidateRuleAdapter";
+} from "./adapter/vscode/ruleAdapter";
 import { createThemeSignalReport } from "./adapter/vscode/themeColorMapper";
 import { getErrorMessage } from "./utils/objectUtils";
 import { applyPatchPlanWithRollback } from "./adapter/vscode/patchApply";

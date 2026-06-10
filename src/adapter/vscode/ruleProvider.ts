@@ -1,4 +1,4 @@
-import type { CandidateRuleDto } from "../types/rule.types";
+import type { CandidateRuleDto } from "../../types/rule.types";
 
 export type CandidateRulesLoader = () => Promise<CandidateRuleDto[]>;
 
